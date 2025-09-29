@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'nainu.top'
+version = '0.0.1-SNAPSHOT'
+description = 'nainu-agi-be'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    maven { url 'https://maven.aliyun.com/repository/spring/' }
+    maven { url 'https://repo.spring.io/milestone' }
+    mavenLocal()
+    mavenCentral()
+}
+
+bootJar {
+    manifest {
+        attributes "Implementation-Title": "Nainu Application",
+                "Implementation-Version": archiveVersion
+    }
+}
+
+ext {
+    springAiVersion = '1.0.2'
+    mapstructVersion = '1.5.5.Final'
+    r2dbcVersion = '1.0.1.RELEASE'
+    apacheCommonTextVersion = '1.10.0'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
+    implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation "org.postgresql:r2dbc-postgresql:$r2dbcVersion"
+    implementation "org.mapstruct:mapstruct:$mapstructVersion"
+    implementation "org.apache.commons:commons-text:$apacheCommonTextVersion"
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}

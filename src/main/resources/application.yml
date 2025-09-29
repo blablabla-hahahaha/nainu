@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: nainu-agi-be
+  ai:
+    deepseek:
+      api-key: sk-8a4d521aadb54e05947240d9a22909e7

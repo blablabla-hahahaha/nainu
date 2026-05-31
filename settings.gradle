@@ -1,1 +1,6 @@
-rootProject.name = 'nainu-agi-be'
+rootProject.name = 'nainu-agi'
+
+include 'nainu-agi-common'
+include 'nainu-agi-gateway'
+include 'nainu-agi-master'
+include 'nainu-agi-worker'

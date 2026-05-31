@@ -1,0 +1,17 @@
+{
+  "name": "nainu-agi-root",
+  "private": true,
+  "type": "module",
+  "description": "仓库机械门禁入口（verify-* + run-gates + spec）。Node >= 23.6 原生执行 TypeScript，零依赖。",
+  "scripts": {
+    "verify:all": "node scripts/run-gates.ts all",
+    "verify:doc-sync": "node scripts/run-gates.ts doc",
+    "verify:agent-notes": "node scripts/run-gates.ts notes",
+    "verify:hygiene": "node scripts/run-gates.ts hygiene",
+    "verify:contract": "node scripts/run-gates.ts contract",
+    "verify:spec": "node scripts/run-specs.ts"
+  },
+  "engines": {
+    "node": ">=23.6"
+  }
+}

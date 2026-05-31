@@ -1,0 +1,201 @@
+{
+  "id": "workflow-demo-branches",
+  "name": "条件分支测试工作流",
+  "version": 3,
+  "meta": {
+    "apiUrl": "https://api.example.com"
+  },
+  "nodes": [
+    {
+      "id": "start",
+      "type": "START",
+      "config": {
+        "name": "开始节点"
+      }
+    },
+    {
+      "id": "debug_start",
+      "type": "DEBUG",
+      "config": {
+        "name": "测试指定输出节点"
+      },
+      "output": [
+        {
+          "key": "result_username",
+          "keyAlias": "username"
+        },
+        {
+          "key": "result_age",
+          "keyAlias": "age"
+        }
+      ]
+    },
+    {
+      "id": "script_transform",
+      "type": "SCRIPT",
+      "config": {
+        "name": "数据转换（脚本）",
+        "language": "javascript",
+        "script": "function main() { return { result_username: params.username, result_age: params.age }; }"
+      },
+      "input": [
+        {
+          "key": "username",
+          "type": "INTERNAL_REF",
+          "value": "debug_start:username"
+        },
+        {
+          "key": "age",
+          "type": "INTERNAL_REF",
+          "value": "debug_start:age"
+        }
+      ],
+      "output": [
+        {
+          "key": "result_username",
+          "keyAlias": "username"
+        },
+        {
+          "key": "result_age",
+          "keyAlias": "age"
+        }
+      ]
+    },
+    {
+      "id": "condition-node",
+      "type": "CONDITION",
+      "config": {
+        "name": "IF/ELIF/ELSE 条件节点"
+      }
+    },
+    {
+      "id": "end_1",
+      "type": "DEBUG",
+      "config": {
+        "name": "张三是小学生"
+      }
+    },
+    {
+      "id": "end_2",
+      "type": "DEBUG",
+      "config": {
+        "name": "张三是初中生"
+      }
+    },
+    {
+      "id": "end_3",
+      "type": "DEBUG",
+      "config": {
+        "name": "不是张三"
+      }
+    },
+    {
+      "id": "end",
+      "type": "END",
+      "config": {
+        "name": "结束"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "start",
+      "target": "debug_start"
+    },
+    {
+      "id": "e2",
+      "source": "debug_start",
+      "target": "script_transform"
+    },
+    {
+      "id": "e3",
+      "source": "condition-node",
+      "target": "end_1",
+      "sourceHandle": "branch-1",
+      "condition": {
+        "branchType": "IF",
+        "logicOperator": "AND",
+        "conditions": [
+          {
+            "field": {
+              "key": "username",
+              "type": "INTERNAL_REF",
+              "value": "script_transform:username"
+            },
+            "operator": "EQUALS",
+            "value": "张三0"
+          },
+          {
+            "field": {
+              "key": "age",
+              "type": "INTERNAL_REF",
+              "value": "script_transform:age"
+            },
+            "operator": "CONTAINS",
+            "value": "10"
+          }
+        ]
+      }
+    },
+    {
+      "id": "e4",
+      "source": "condition-node",
+      "target": "end_2",
+      "sourceHandle": "branch-2",
+      "condition": {
+        "branchType": "ELIF",
+        "logicOperator": "OR",
+        "conditions": [
+          {
+            "field": {
+              "key": "username",
+              "type": "INTERNAL_REF",
+              "value": "script_transform:username"
+            },
+            "operator": "EQUALS",
+            "value": "张三0"
+          },
+          {
+            "field": {
+              "key": "age",
+              "type": "INTERNAL_REF",
+              "value": "script_transform:age"
+            },
+            "operator": "CONTAINS",
+            "value": "16"
+          }
+        ]
+      }
+    },
+    {
+      "id": "e5",
+      "source": "condition-node",
+      "target": "end_3",
+      "sourceHandle": "branch-3",
+      "condition": {
+        "branchType": "ELSE"
+      }
+    },
+    {
+      "id": "e6",
+      "source": "end_1",
+      "target": "end"
+    },
+    {
+      "id": "e7",
+      "source": "end_2",
+      "target": "end"
+    },
+    {
+      "id": "e8",
+      "source": "end_3",
+      "target": "end"
+    },
+    {
+      "id": "e2b",
+      "source": "script_transform",
+      "target": "condition-node"
+    }
+  ]
+}

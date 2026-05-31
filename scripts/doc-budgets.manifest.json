@@ -1,0 +1,9 @@
+{
+  "files": {
+    "AGENTS.md": { "maxWords": 1200 },
+    "web/AGENTS.md": { "maxWords": 1900 },
+    "nainu-agi-common/AGENTS.md": { "maxWords": 500 },
+    "docs/AGENTS.md": { "maxWords": 1200 },
+    "docs/vision.md": { "maxWords": 1300 }
+  }
+}

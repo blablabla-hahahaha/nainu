@@ -1,66 +1,78 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.6'
-    id 'io.spring.dependency-management' version '1.1.7'
-}
-
-group = 'nainu.top'
-version = '0.0.1-SNAPSHOT'
-description = 'nainu-agi-be'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
-repositories {
-    maven { url 'https://maven.aliyun.com/repository/public/' }
-    maven { url 'https://maven.aliyun.com/repository/spring/' }
-    maven { url 'https://repo.spring.io/milestone' }
-    mavenLocal()
-    mavenCentral()
-}
-
-bootJar {
-    manifest {
-        attributes "Implementation-Title": "Nainu Application",
-                "Implementation-Version": archiveVersion
-    }
+    id 'org.springframework.boot' version '3.5.8' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
 ext {
-    springAiVersion = '1.0.2'
+    springAiVersion = '1.1.2'
+    springAiAlibabaVersion = '1.1.2.2'
     mapstructVersion = '1.5.5.Final'
     r2dbcVersion = '1.0.1.RELEASE'
-    apacheCommonTextVersion = '1.10.0'
 }
 
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
-    implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
-    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
-    implementation "org.postgresql:r2dbc-postgresql:$r2dbcVersion"
-    implementation "org.mapstruct:mapstruct:$mapstructVersion"
-    implementation "org.apache.commons:commons-text:$apacheCommonTextVersion"
+allprojects {
+    group = 'nainu.top'
+    version = '0.0.1-SNAPSHOT'
+    description = 'Nainu AGI'
 
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'io.projectreactor:reactor-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
+
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        maven { url 'https://maven.aliyun.com/repository/spring/' }
+        maven { url 'https://repo.spring.io/milestone' }
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation 'io.projectreactor:reactor-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom SpringBootPlugin.BOM_COORDINATES
+            mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+            mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
+        }
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+project(':nainu-agi-master') {
+    apply plugin: 'org.springframework.boot'
+}
+
+project(':nainu-agi-gateway') {
+    apply plugin: 'org.springframework.boot'
+}
+
+project(':nainu-agi-worker') {
+    apply plugin: 'org.springframework.boot'
 }

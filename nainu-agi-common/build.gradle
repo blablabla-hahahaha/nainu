@@ -1,0 +1,7 @@
+description = 'Nainu AGI Common Module'
+
+dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    implementation 'org.springframework:spring-context'
+}

@@ -1,0 +1,44 @@
+{
+  "name": "nainu-agi-fe",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "gen:dsl": "node scripts/gen-dsl.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/pro-components": "^3.1.4-0",
+    "@ant-design/x": "^2.2.1",
+    "@ant-design/x-markdown": "^2.3.0",
+    "@ant-design/x-sdk": "^2.3.0",
+    "@monaco-editor/react": "^4.8.0-rc.3",
+    "@xyflow/react": "^12.10.0",
+    "antd": "^6.2.1",
+    "antd-style": "^4.1.0",
+    "lodash": "^4.17.23",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.9.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^22.20.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "ajv": "^8.20.0",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5"
+  }
+}

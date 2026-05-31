@@ -1,0 +1,17 @@
+description = 'Nainu AGI Gateway Module'
+
+dependencies {
+    implementation project(':nainu-agi-common')
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+}
+
+bootJar {
+    enabled = true
+    archiveBaseName = 'nainu-agi-gateway'
+}
+
+jar {
+    enabled = false
+}

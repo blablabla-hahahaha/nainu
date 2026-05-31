@@ -1,0 +1,168 @@
+.workflow-node {
+    position: relative;
+    padding: 12px;
+    border-radius: 8px;
+    min-width: 150px;
+    width: 235px;
+}
+
+.workflow-node :global(.react-flow__handle-left) {
+    top: 23px;
+}
+
+.workflow-node .node-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.workflow-node .node-header .node-icon-wrap {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+    font-size: 16px;
+}
+
+.workflow-node .node-header .node-icon-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.workflow-node .node-header .node-name {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+}
+
+.workflow-node .node-header .status-icon {
+    font-size: 14px;
+}
+
+.workflow-node .node-content {
+    font-size: 13px;
+}
+
+.node-expanded-wrap {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    pointer-events: auto;
+}
+
+.node-expanded-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #8c8c8c;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    user-select: none;
+    background-color: #ffffff;
+    border: 1px solid #d9d9d9;
+}
+
+.node-expanded-panel {
+    width: 320px;
+    padding: 16px;
+    margin-top: 8px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.node-expanded-title {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 12px;
+}
+
+.node-expanded-message {
+    font-size: 10px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.node-expanded-section {
+    margin-bottom: 16px;
+}
+
+.node-expanded-section:last-child {
+    margin-bottom: 0;
+}
+
+.node-expanded-section .section-title {
+    font-size: 12px;
+    margin-top: 8px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.node-expanded-section .section-content {
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: rgba(0, 0, 0, 0.85);
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.handle-host {
+    background: none;
+    border: none;
+    width: 14px;
+    min-width: 14px;
+    height: 14px;
+    min-height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.handle-dot {
+    border-width: 0;
+    border-radius: 0;
+    width: .125rem;
+    height: .5rem;
+    transition: all 0.2s;
+}
+
+.handle-dot-left {
+    margin-right: .175rem;
+}
+
+.handle-dot-right {
+    margin-left: .175rem;
+}
+
+.handle-plus {
+    border-radius: 100%;
+    font-size: .5rem;
+    padding: .2rem;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: absolute;
+    pointer-events: auto;
+    cursor: crosshair;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(24, 144, 255, 0);
+    }
+}
+
+.pulse-animation {
+    animation: pulse 2s ease-in-out infinite;
+}

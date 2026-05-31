@@ -1,0 +1,28 @@
+description = 'Nainu AGI Master Module'
+
+ext {
+    r2dbcVersion = '1.0.1.RELEASE'
+}
+
+dependencies {
+    implementation project(':nainu-agi-common')
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.45.1'
+
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-graph-core'
+    implementation 'org.graalvm.polyglot:polyglot:24.2.0'
+    implementation 'org.graalvm.js:js:24.2.0'
+    implementation "org.postgresql:r2dbc-postgresql:$r2dbcVersion"
+}
+
+bootJar {
+    enabled = true
+    archiveBaseName = 'nainu-agi-master'
+}
+
+jar {
+    enabled = false
+}

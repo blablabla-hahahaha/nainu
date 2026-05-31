@@ -1,0 +1,20 @@
+server:
+  port: 8082
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/nainu_agi
+    username: root
+    password: 016895
+    pool:
+      initial-size: 5
+      max-size: 20
+
+logging:
+  level:
+    nainu.top.agi.master: DEBUG

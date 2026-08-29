@@ -1,17 +1,12 @@
 import { useCallback } from 'react';
-import {
-    applyNodeChanges,
-    applyEdgeChanges,
-    type NodeChange,
-    type EdgeChange,
-    type Node,
-    type Edge,
-} from '@xyflow/react';
+import type { Dispatch } from 'react';
+import type { NodeChange, EdgeChange, Node, Edge } from '@xyflow/react';
 import { useSnapGuide, type guide_line_payload } from './use-snap-guide';
+import type { workflow_action } from '../graph/reducer';
 
-const START_NODE_ID = 'start';
+const START_NODE_TYPE = 'START';
 
-const is_start = (type?: string) => type === START_NODE_ID;
+const is_start = (type?: string) => type === START_NODE_TYPE;
 
 interface guide_setters {
     setHorizontal: (v: guide_line_payload) => void;
@@ -19,13 +14,13 @@ interface guide_setters {
 }
 
 /**
- * 钩子：封装 ReactFlow Nodes/Edges onChange（start 不可删、start 连线不可删、吸附参考线）。
+ * 钩子：把 ReactFlow Nodes/Edges onChange 翻译为 reducer 动作（受控化）。
+ * start 不可删；位置变化经吸附后派发 view/move_node；其余派发对应图变更。
  */
 export function useWorkflowChanges(
     nodes: Node[],
-    edges: Edge[],
-    setNodes: (fn: (nds: Node[]) => Node[]) => void,
-    setEdges: (fn: (eds: Edge[]) => Edge[]) => void,
+    _edges: Edge[],
+    dispatch: Dispatch<workflow_action>,
     guide: guide_setters,
 ) {
     const { apply_snap_to_change, reset_guide_lines } = useSnapGuide(
@@ -37,41 +32,32 @@ export function useWorkflowChanges(
     const onNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         reset_guide_lines();
 
-        const filtered_changes = changes.filter(change => {
+        const filtered = changes.filter(change => {
             if (change.type !== 'remove') return true;
-            const node_to_remove = nodes.find(n => n.id === change.id);
-            return !is_start(node_to_remove?.type);
+            const node = nodes.find(n => n.id === change.id);
+            return !is_start(node?.type);
         });
 
-        const new_changes: NodeChange<Node>[] = [];
-        filtered_changes.forEach((change) => {
-            if (change.type !== 'position') {
-                new_changes.push(change);
-                return;
+        for (const change of filtered) {
+            if (change.type === 'remove') {
+                dispatch({ type: 'graph/remove_node', nodeId: change.id });
+            } else if (change.type === 'position' && change.position) {
+                dispatch({
+                    type: 'view/move_node',
+                    nodeId: change.id,
+                    position: apply_snap_to_change(change).position ?? change.position,
+                });
             }
-            if (!change.position) {
-                new_changes.push(change);
-                return;
-            }
-            new_changes.push(apply_snap_to_change(change));
-        });
-
-        setNodes((nds) => applyNodeChanges(new_changes, nds));
-    }, [nodes, setNodes, apply_snap_to_change, reset_guide_lines]);
+        }
+    }, [nodes, dispatch, apply_snap_to_change, reset_guide_lines]);
 
     const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
-        const filtered_changes = changes.filter(change => {
-            if (change.type !== 'remove') return true;
-            const edge = edges.find(e => e.id === change.id);
-            if (!edge) return true;
-            const is_start_edge = edge.source === START_NODE_ID || edge.target === START_NODE_ID;
-            const selected_nodes = nodes.filter(n => n.selected);
-            const only_start_selected = selected_nodes.length === 1 && is_start(selected_nodes[0]?.type);
-            const edge_not_selected = !selected_nodes.some(n => n.id === edge.id);
-            return !(is_start_edge && only_start_selected && edge_not_selected);
-        });
-        setEdges((eds) => applyEdgeChanges(filtered_changes, eds));
-    }, [edges, nodes, setEdges]);
+        for (const change of changes) {
+            if (change.type === 'remove') {
+                dispatch({ type: 'graph/remove_edge', edgeId: change.id });
+            }
+        }
+    }, [dispatch]);
 
     return { onNodesChange, onEdgesChange };
 }

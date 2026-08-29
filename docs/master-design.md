@@ -71,7 +71,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 5.1 九事件
 
-`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。
+`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。SSE 线格式为默认 message 事件（帧仅 `id` + `data`，类型在 `data.type` 内），`EventSource.onmessage` 即收——服务端不发送命名 `event:` 帧，避免与浏览器默认事件语义不一致。
 
 ### 5.2 执行会话
 

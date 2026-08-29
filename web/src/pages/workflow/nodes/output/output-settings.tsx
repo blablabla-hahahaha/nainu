@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Form } from 'antd';
 import { NodeSetting, type node_settings_props } from '@/components/workflow/components/node-setting';
 import {
@@ -12,7 +11,8 @@ import {
     type output_field,
 } from "@/pages/workflow/nodes/output/output-field";
 import { MonacoCodeEditorItem } from "@/components/monaco-code-editor";
-import { useReactFlow, useNodes } from '@xyflow/react';
+import { useWorkflowState } from '@/components/workflow/graph';
+import type { graph_node } from '@/components/workflow/graph/types';
 
 interface output_node_form_values {
     label: string;
@@ -21,32 +21,21 @@ interface output_node_form_values {
     outputs: output_field[];
 }
 
-function build_initial_output_settings(nodeData: Record<string, unknown> | undefined): output_node_form_values {
-    const d = (nodeData ?? {}) as Record<string, unknown>;
-    const inputs_raw = (d.inputs as unknown[] | undefined) ?? [];
-    const inputs: node_field_definition[] = inputs_raw.map(x => {
-        const r = (x ?? {}) as Record<string, unknown>;
-        return {
-            id: (r.id as string) ?? '',
-            alias: (r.alias as string) ?? '',
-            type: (r.type as node_field_definition['type']) ?? node_field_definition_support.CUSTOM,
-            value: (r.value as string) ?? '',
-        };
-    });
-    const json_template = (d.jsonTemplate as string) ?? '{\n  "result": ""\n}';
-    const outputs_raw = (d.outputs as unknown[] | undefined) ?? [];
-    const outputs: output_field[] = outputs_raw.map(x => {
-        const r = (x ?? {}) as Record<string, unknown>;
-        return {
-            id: (r.id as string) ?? '',
-            alias: (r.alias as string) ?? '',
-            value: (r.value as string) ?? '',
-        };
-    });
+function build_initial_output_settings(node: graph_node | undefined): output_node_form_values {
+    const config = (node?.config ?? {}) as Record<string, unknown>;
+    const inputs: node_field_definition[] = (node?.input ?? []).map(f => ({
+        alias: f.key,
+        type: f.type,
+        value: f.value,
+    }));
+    const outputs: output_field[] = (node?.output ?? []).map(o => ({
+        alias: o.keyAlias && o.keyAlias.length > 0 ? o.keyAlias : o.key,
+        value: o.key,
+    }));
     return {
-        label: (d.label as string) ?? '指定输出',
-        inputs: inputs.length > 0 ? inputs : [],
-        jsonTemplate: json_template,
+        label: typeof config['name'] === 'string' ? config['name'] as string : '指定输出',
+        inputs,
+        jsonTemplate: typeof config['jsonTemplate'] === 'string' ? config['jsonTemplate'] as string : '{\n  "result": ""\n}',
         outputs,
     };
 }
@@ -92,20 +81,12 @@ function validate_output_settings(values: output_node_form_values): null | strin
 }
 
 /**
- * 输出节点 Settings 面板（输入字段 + JSON 模板 + 输出字段 + 从模板生成）。
+ * 输出节点 Settings 面板：读写 canonical 节点的 config/input/output（经 dispatch）。
  */
 export default function OutputSettings({ nodeId, onClose }: node_settings_props) {
     const [form] = Form.useForm();
-    const reactFlow = useReactFlow();
-    const nodes = useNodes();
-
-    useEffect(() => {
-        const currentNode = nodes.find(n => n.id === nodeId);
-        if (currentNode) {
-            const initial = build_initial_output_settings(currentNode.data);
-            form.setFieldsValue(initial);
-        }
-    }, [nodeId, form, nodes]);
+    const { state, dispatch } = useWorkflowState();
+    const node = state.graph.nodes.find(n => n.id === nodeId);
 
     return (
         <NodeSetting
@@ -116,14 +97,32 @@ export default function OutputSettings({ nodeId, onClose }: node_settings_props)
             <Form
                 form={form}
                 layout="vertical"
-                onValuesChange={(_, all_values) => reactFlow.updateNodeData(nodeId, all_values)}
+                initialValues={build_initial_output_settings(node)}
+                onValuesChange={(_, all_values: output_node_form_values) => {
+                    dispatch({
+                        type: 'graph/update_node',
+                        nodeId,
+                        config: {
+                            name: all_values.label,
+                            jsonTemplate: all_values.jsonTemplate,
+                        },
+                        input: (all_values.inputs ?? []).map(f => ({
+                            key: f.alias ?? '',
+                            type: f.type ?? node_field_definition_support.CUSTOM,
+                            value: f.value,
+                        })),
+                        output: (all_values.outputs ?? []).map(o => ({
+                            key: o.value,
+                            keyAlias: o.alias,
+                        })),
+                    });
+                }}
             >
-
                 <Form.Item label="输入字段">
                     <NodeInputFields name="inputs" />
                 </Form.Item>
 
-                <MonacoCodeEditorItem label="输出内容" name="content" />
+                <MonacoCodeEditorItem label="输出内容" name="jsonTemplate" />
 
                 <Form.Item label="输出字段">
                     <NodeOutputFields name="outputs" />

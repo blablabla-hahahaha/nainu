@@ -3,7 +3,8 @@ import type { ItemType } from "antd/es/menu/interface";
 import { uuid } from '@/utils/id-gen';
 import type { XYPosition } from "@xyflow/react";
 import { useReactFlow } from "@xyflow/react";
-import type { graph_node, graph_edge } from "../graph/types";
+import { useWorkflowState } from "../graph";
+import type { DslNodeType } from "@/generated/workflow-dsl";
 
 interface node_menu_props {
     menuItems?: ItemType[];
@@ -13,10 +14,11 @@ interface node_menu_props {
 }
 
 /**
- * 节点右侧连接菜单（新增/分支节点）。
+ * 节点右侧连接菜单：新增节点（dispatch graph/add_node）+ 条件节点预置 IF/ELSE 分支边。
  */
 export default function NodeMenu(props: node_menu_props) {
     const reactFlow = useReactFlow();
+    const { dispatch } = useWorkflowState();
 
     const find_optimal_position = (): XYPosition => {
         const node = reactFlow.getNode(props.sourceId);
@@ -56,27 +58,35 @@ export default function NodeMenu(props: node_menu_props) {
             selectedKeys={[]}
             items={props.menuItems}
             onClick={({ key }) => {
-                const node = props.menuItems?.find((item) => item?.key === key)
+                const dslType = key as DslNodeType;
                 const node_id = uuid();
 
-                const graphNode: graph_node = {
-                    id: node_id,
-                    type: node?.key?.toString() || '',
-                    data: {
-                        label: node?.type !== 'divider' ? node?.label : undefined,
-                    },
-                };
+                dispatch({
+                    type: 'graph/add_node',
+                    node: { id: node_id, type: dslType },
+                    position: find_optimal_position(),
+                });
 
-                const graphEdge: graph_edge = {
-                    id: uuid(),
+                if (dslType === 'CONDITION') {
+                    const if_id = uuid();
+                    const else_id = uuid();
+                    dispatch({
+                        type: 'graph/set_condition_edges',
+                        source: node_id,
+                        edges: [
+                            { id: if_id, source: node_id, sourceHandle: if_id, target: '', condition: { branchType: 'IF', logicOperator: 'AND', conditions: [] } },
+                            { id: else_id, source: node_id, sourceHandle: else_id, target: '', condition: { branchType: 'ELSE' } },
+                        ],
+                    });
+                }
+
+                dispatch({
+                    type: 'graph/connect_edge',
                     source: props.sourceId,
-                    sourceHandle: props.sourceHandleId || undefined,
+                    sourceHandle: props.sourceHandleId ?? undefined,
                     target: node_id,
-                    data: {},
-                };
+                });
 
-                reactFlow.addNodes([{ ...graphNode, position: find_optimal_position() }]);
-                reactFlow.addEdges([{ ...graphEdge, type: 'edge' }]);
                 props.onClose?.();
             }}
         />

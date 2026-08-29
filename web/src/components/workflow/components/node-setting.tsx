@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Flex, notification, theme, Tooltip } from "antd";
 import { ApiOutlined, CloseOutlined, PlayCircleOutlined } from "@ant-design/icons";
-import { Panel as XYFlowPanel, useNodes, useReactFlow } from "@xyflow/react";
+import { Panel as XYFlowPanel } from "@xyflow/react";
 import type { ComponentType } from "react";
 import { default as EditableText } from "@/components/editable-text/editable-text";
+import { useWorkflowState, node_name } from "../graph";
 
 /**
  * onValidate 返回类型。
@@ -35,19 +36,22 @@ export function NodeSetting({
     onValidate,
 }: node_settings_props) {
     const { token } = theme.useToken();
-    const nodes = useNodes();
-    const reactFlow = useReactFlow();
+    const { state, dispatch } = useWorkflowState();
     const [label, setLabel] = useState('');
 
     useEffect(() => {
-        const currentNode = nodes.find(n => n.id === nodeId);
-        setLabel((currentNode?.data?.label as string) || '');
-    }, [nodeId, nodes]);
+        const currentNode = state.graph.nodes.find(n => n.id === nodeId);
+        setLabel(currentNode ? node_name(currentNode) : '');
+    }, [nodeId, state.graph.nodes]);
 
     const handle_label_change = (newLabel: string) => {
-        const currentNode = nodes.find(n => n.id === nodeId);
+        const currentNode = state.graph.nodes.find(n => n.id === nodeId);
         if (currentNode) {
-            reactFlow.updateNodeData(currentNode.id, { label: newLabel });
+            dispatch({
+                type: 'graph/update_node',
+                nodeId,
+                config: { ...((currentNode.config ?? {}) as Record<string, unknown>), name: newLabel },
+            });
         }
         setLabel(newLabel);
     };

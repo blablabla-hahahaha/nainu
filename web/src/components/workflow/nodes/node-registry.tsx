@@ -62,7 +62,7 @@ export function create_default_registry(token: ant_design_token_ref): node_regis
 
     return create_registry([
         {
-            type: 'start',
+            type: 'START',
             label: '开始',
             icon: icons.start,
             node: Start,
@@ -70,7 +70,7 @@ export function create_default_registry(token: ant_design_token_ref): node_regis
             connectable: false,
         },
         {
-            type: 'end',
+            type: 'END',
             label: '结束',
             icon: icons.end,
             node: End,

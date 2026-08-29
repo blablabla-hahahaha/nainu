@@ -26,6 +26,17 @@ if (existsSync(genScript)) {
     console.log('（跳过生成新鲜度检查：web/scripts/gen-dsl.mjs 不存在）');
 }
 
+// (1b) 前端 round-trip：canonical → ReactFlow 投影 → canonical 幂等
+const roundtripScript = join(repoRoot, 'web', 'scripts', 'verify-roundtrip.ts');
+if (existsSync(roundtripScript)) {
+    const r = spawnSync('node', ['web/scripts/verify-roundtrip.ts'], { cwd: repoRoot, encoding: 'utf8' });
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    if (r.status !== 0) errors++;
+} else {
+    console.log('（跳过 round-trip 检查：web/scripts/verify-roundtrip.ts 不存在）');
+}
+
 // (2)(3) 仓库 DSL 样例
 const validateScript = join(repoRoot, 'web', 'scripts', 'validate-dsl.mjs');
 const samples = [

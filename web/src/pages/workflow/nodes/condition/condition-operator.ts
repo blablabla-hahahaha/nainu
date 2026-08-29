@@ -6,6 +6,7 @@ import {
     type node_field_definition,
     node_field_definition_support,
 } from "@/components/workflow/extends/node-field/node-field";
+import type { graph_condition } from "@/components/workflow/graph/types";
 
 /**
  * 比较运算符类型（字段间的判断方式）。
@@ -245,3 +246,45 @@ export const branch_operator_definition_support = {
         return result;
     },
 };
+
+/**
+ * canonical DslCondition → 前端分支模型（显示/表单用）。
+ */
+export function condition_to_branch(condition: graph_condition): branch_operator_definition {
+    const branch: branch_operator_definition = { type: condition.branchType };
+    if (condition.logicOperator) {
+        branch.logic = condition.logicOperator;
+    }
+    const compares = (condition.conditions ?? []).map((c) => ({
+        field: { alias: c.field.key, type: c.field.type, value: c.field.value },
+        type: c.operator,
+        value: c.value ? { alias: 'value', type: 'CUSTOM' as const, value: c.value } : undefined,
+    }));
+    if (compares.length > 0) {
+        branch.compares = compares;
+    }
+    return branch;
+}
+
+/**
+ * 前端分支模型 → canonical DslCondition（落 DSL）。
+ */
+export function branch_to_condition(branch: branch_operator_definition): graph_condition {
+    const condition: graph_condition = { branchType: branch.type };
+    if (branch.logic) {
+        condition.logicOperator = branch.logic;
+    }
+    const compares = (branch.compares ?? []).map((c) => ({
+        field: {
+            key: c.field.alias || c.field.value,
+            type: c.field.type ?? 'CUSTOM',
+            value: c.field.value,
+        },
+        operator: c.type,
+        value: c.value ? c.value.value ?? '' : '',
+    }));
+    if (compares.length > 0) {
+        condition.conditions = compares;
+    }
+    return condition;
+}

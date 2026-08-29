@@ -14,7 +14,7 @@ DSL 以 `nainu-agi-common/src/main/resources/dsl/workflow-dsl.schema.json`（JSO
 
 trace 九事件（execution_* × 5 + node_* × 4）持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq），实时经进程内 sink 推 SSE、历史经 XRANGE 重放；`threadId = runId`，RedisSaver 检查点支持暂停（graph-core 取消语义，at-least-once）与同 threadId 续跑；HITL 中断（`InterruptionMetadata`）检测与 `updateState` 恢复已就绪。master 的 Redis 访问统一到 Redisson（Lettuce 退役，后端整体重写无历史负债）。SCRIPT 节点用 GraalVM 嵌入沙箱（`HostAccess.NONE` + `allowIO(false)` + `ResourceLimits.statementLimit`），`params` 注入 + `main()` 约定，先 JS 后 Python（GraalPython 无法运行 C 扩展依赖）。
 
-前端受控化重构（canonical/view/runtime 三切片、统一节点目录、回放器）是独立蓝图，见 [前端受控化重构与回放器（proposed）](../../proposed/architecture/2026-08-30-frontend-controlled-refactor.md)。
+前端受控化重构（canonical/view/runtime 三切片、统一节点目录、回放器）已交付，见 [前端受控化重构与回放器（implemented）](./2026-08-30-frontend-controlled-refactor.md)。
 
 ## Alternatives considered
 

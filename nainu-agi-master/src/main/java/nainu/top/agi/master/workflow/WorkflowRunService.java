@@ -89,7 +89,6 @@ public class WorkflowRunService {
         return Flux.concat(history, live)
                 .map(m -> ServerSentEvent.<Map<String, Object>>builder(m)
                         .id(String.valueOf(m.get("seq")))
-                        .event(String.valueOf(m.get("type")))
                         .build());
     }
 

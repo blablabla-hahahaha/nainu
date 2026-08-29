@@ -3,9 +3,13 @@ import type { ReactNode, ComponentType } from "react";
 import type { node_props } from "../components/node-types";
 import type { node_settings_props, node_setting_types } from "../components/node-setting";
 import type { ant_design_token_ref } from "../components/status";
+import type { DslNodeType } from "@/generated/workflow-dsl";
 
 export interface node_registry_entry {
-    type: string;
+    /**
+     * DSL 节点类型（与后端 NodeType 唯一对齐）。
+     */
+    type: DslNodeType;
     label: string;
     icon: ReactNode;
     node: ComponentType<node_props>;

@@ -1,65 +1,49 @@
 /**
- * Condition 节点的配置面板组件。
- * 负责条件分支的增删改和表单同步。
+ * Condition 节点配置面板：读 canonical 出边（typed conditional edge），
+ * 编辑经 dispatch graph/set_condition_edges 落 DSL（受控）。
  */
 
 import {Button, Form, theme} from 'antd';
 import {PlusOutlined} from '@ant-design/icons';
 import {type node_settings_props, NodeSetting} from '@/components/workflow/components/node-setting';
-import {type branch_operator_definition, branch_operator_definition_support,} from './condition-operator';
+import {
+    type branch_operator_definition,
+    branch_operator_definition_support,
+    condition_to_branch,
+    branch_to_condition,
+} from './condition-operator';
 import {BranchOperatorForm} from './branch-operator-form';
 import {uuid} from '@/utils/id-gen';
-import {useReactFlow, useNodes, useEdges} from '@xyflow/react';
-import type {graph_edge} from '@/components/workflow/graph/types';
+import {useWorkflowState} from '@/components/workflow/graph';
 
 /**
- * 条件分支节点 Settings 面板（分支列表 + IF/ELIF/ELSE 增删）。
+ * 条件分支节点 Settings 面板（分支列表 + IF/ELIF/ELSE 增删，落 canonical 边）。
  */
 export default function ConditionSettings({ nodeId, onClose }: node_settings_props) {
     const [form] = Form.useForm();
     const { token } = theme.useToken();
-    const reactFlow = useReactFlow();
-    const nodes = useNodes();
-    const edges = useEdges();
+    const { state, dispatch } = useWorkflowState();
 
-    const currentNode = nodes.find(n => n.id === nodeId);
-    const sourceEdges = edges.filter(e => e.source === currentNode?.id);
+    const sourceEdges = state.graph.edges.filter(e => e.source === nodeId && e.condition);
 
-    const initialValues = sourceEdges.map(edge => {
-        const edgeData = (edge.data ?? {}) as Record<string, unknown>;
-        if (edgeData.type === undefined && edgeData.branchType === undefined) {
-            return null;
-        }
-        return branch_operator_definition_support.normalize(edge.data);
-    }).filter((b): b is branch_operator_definition => b !== null)
-
-    const refreshBranches = (branches: branch_operator_definition[]) => {
-        reactFlow.setEdges((eds) => {
-            // 如果 branch 不存在 else，则添加
-            const else_branch = branches?.find(b => b.type === branch_operator_definition_support.BRANCH.ELSE);
-            if (!else_branch) {
-                branches?.push(branch_operator_definition_support.getElseBranchDefinition());
-            }
-
-            const otherEdges = eds.filter(e => e.source !== currentNode?.id);
-            const sourceEdges = edges.filter(e => e.source === currentNode?.id);
-            const newEdges = branches.map<graph_edge>((branch, index) => {
+    const refresh_branches = (branches: branch_operator_definition[]) => {
+        const ensured = branch_operator_definition_support.ensureComplete(branches);
+        dispatch({
+            type: 'graph/set_condition_edges',
+            source: nodeId,
+            edges: ensured.map((branch, index) => {
                 const existing = sourceEdges[index];
                 const edgeId = existing?.id || uuid();
                 return {
                     id: edgeId,
-                    source: currentNode!.id,
-                    sourceHandle: edgeId,
-                    target: existing?.target || '',
-                    targetHandle: existing?.targetHandle ?? '',
-                    type: 'edge',
-                    data: branch,
+                    source: nodeId,
+                    sourceHandle: existing?.sourceHandle ?? edgeId,
+                    target: existing?.target ?? '',
+                    condition: branch_to_condition(branch),
                 };
-            });
-
-            return [...otherEdges, ...newEdges];
+            }),
         });
-    }
+    };
 
     return (
         <NodeSetting
@@ -77,9 +61,11 @@ export default function ConditionSettings({ nodeId, onClose }: node_settings_pro
                 form={form}
                 layout="vertical"
                 onValuesChange={(_, allValues) => {
-                    refreshBranches(allValues?.branches);
+                    refresh_branches(allValues?.branches ?? []);
                 }}
-                initialValues={{ branches: initialValues }}
+                initialValues={{
+                    branches: sourceEdges.map(e => condition_to_branch(e.condition!)),
+                }}
             >
                 <Form.List name="branches">
                     {(logics, { remove }) => {
@@ -116,7 +102,7 @@ export default function ConditionSettings({ nodeId, onClose }: node_settings_pro
                                             else_branch,
                                         ]
                                         form.setFieldsValue({ branches: newBranches });
-                                        refreshBranches(newBranches);
+                                        refresh_branches(newBranches);
                                     }}
                                 >
                                     添加分支

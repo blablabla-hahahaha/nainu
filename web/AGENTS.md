@@ -227,4 +227,4 @@ props / 事件类型、`Promise<T|undefined>` 判空、`Object.keys` 返回 `str
 
 ## 特殊子系统
 
-`src/component/workflow/` 子系统详见 [docs/design/workflow/workflow.md](./docs/design/workflow/workflow.md)
+`src/components/workflow/` 子系统（受控三切片 + 回放器）详见 [docs/design/workflow/workflow.md](./docs/design/workflow/workflow.md)

@@ -16,10 +16,7 @@ export interface WorkflowDSL {
    * 工作流元数据；视图状态（位置/视口）按约定放 meta.view
    */
   meta?: {};
-  /**
-   * @minItems 1
-   */
-  nodes: [DslNode, ...DslNode[]];
+  nodes: DslNode[];
   edges: DslEdge[];
 }
 export interface DslNode {
@@ -57,10 +54,7 @@ export interface DslEdge {
 export interface DslCondition {
   branchType: "IF" | "ELIF" | "ELSE";
   logicOperator?: "AND" | "OR";
-  /**
-   * @minItems 1
-   */
-  conditions?: [DslCompare, ...DslCompare[]];
+  conditions?: DslCompare[];
 }
 export interface DslCompare {
   field: DslInputField;

@@ -113,6 +113,7 @@ export default function WorkflowPage() {
     const { token } = theme.useToken();
     const [state, dispatch] = useReducer(workflow_reducer, undefined, init_workflow_state);
     const control = useReplayState(state.graph, dispatch);
+    const { reset_to_init, load_replay, runs } = control;
     const [selected_node_id, set_selected_node_id] = useState<string | null>(null);
     const [show_event_log, set_show_event_log] = useState(true);
 
@@ -146,6 +147,19 @@ export default function WorkflowPage() {
         set_selected_node_id(null);
     }, []);
 
+    const handle_open_log = useCallback(() => {
+        set_show_event_log(true);
+        const latest_run = runs[0];
+        if (latest_run) {
+            void load_replay(latest_run.runId);
+        }
+    }, [runs, load_replay]);
+
+    const handle_close_log = useCallback(() => {
+        set_show_event_log(false);
+        reset_to_init();
+    }, [reset_to_init]);
+
     // 节点 id → 显示名，供事件日志展示（graph.nodes 引用在 run 期间稳定，避免运行中反复重算）
     const node_name_map = useMemo(() => {
         const map: Record<string, string> = {};
@@ -171,7 +185,7 @@ export default function WorkflowPage() {
     return (
         <workflow_state_context.Provider value={{ state, dispatch }}>
             <div style={page_canvas_style}>
-                <ReplayControls control={control} />
+                <ReplayControls control={control} log_open={show_log} on_open_log={handle_open_log} />
                 <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                     <Workflow
                         registry={custom_registry}
@@ -212,7 +226,7 @@ export default function WorkflowPage() {
                                         node_names={node_name_map}
                                         active_run_id={control.runId}
                                         on_select_run={(run_id) => void control.load_replay(run_id)}
-                                        onClose={() => set_show_event_log(false)}
+                                        onClose={handle_close_log}
                                     />
                                 </div>
                             )}

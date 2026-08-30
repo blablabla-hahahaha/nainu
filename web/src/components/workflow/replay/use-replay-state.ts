@@ -54,6 +54,8 @@ export interface replay_control {
     step: () => void;
     seek: (position: number) => void;
     set_speed: (speed: number) => void;
+    /** 重置回初始状态：退出播放、清空运行时/事件/进度；保留执行历史供再次查看。 */
+    reset_to_init: () => void;
 }
 
 /**
@@ -264,6 +266,27 @@ export function useReplayState(
 
     const seek = useCallback((pos: number) => setPosition(pos), []);
 
+    /**
+     * 重置回初始状态：关闭事件源与播放计时器，清空运行时/事件/进度/错误，
+     * 退出回放与播放（mode 回 live、playing 关闭），执行状态回 idle。
+     * 执行历史（runs）保留，供「调试结果」面板再次查看与回放。
+     */
+    const reset_to_init = useCallback(() => {
+        source_ref.current?.close();
+        if (timer_ref.current !== null) {
+            window.clearInterval(timer_ref.current);
+        }
+        setRunId(undefined);
+        setMode('live');
+        setEvents([]);
+        setPosition(0);
+        setPlaying(false);
+        setExecutionStatus('idle');
+        setErrorMessage(undefined);
+        events_ref.current = [];
+        dispatch({ type: 'runtime/reset' });
+    }, [dispatch]);
+
     return useMemo(() => ({
         runId,
         mode,
@@ -283,6 +306,7 @@ export function useReplayState(
         step,
         seek,
         set_speed: setSpeed,
+        reset_to_init,
     }), [
         runId,
         mode,
@@ -302,5 +326,6 @@ export function useReplayState(
         step,
         seek,
         setSpeed,
+        reset_to_init,
     ]);
 }

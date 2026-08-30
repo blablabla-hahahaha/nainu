@@ -107,15 +107,10 @@ export default memo(function ReplayControls({ control, log_open, on_open_log }: 
                 >
                     恢复
                 </Button>
-                {control.error_message && (
-                    <Typography.Text type="danger" style={{ fontSize: 12 }}>
-                        {control.error_message}
-                    </Typography.Text>
-                )}
                 <Button
                     icon={<ExperimentOutlined />}
                     onClick={on_open_log}
-                    disabled={!has_runs || log_open}
+                    disabled={(!has_runs && !control.error_message) || log_open}
                 >
                     调试记录
                 </Button>

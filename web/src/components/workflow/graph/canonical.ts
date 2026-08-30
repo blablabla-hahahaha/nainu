@@ -2,7 +2,7 @@
  * canonical 图纯函数：节点/边/视图的读取与变换。
  * 无 React 依赖、无运行时三方依赖（门禁 round-trip 可 import）。
  */
-import type { workflow_graph, graph_node, graph_edge, workflow_view } from './types.ts';
+import type { workflow_graph, graph_node, graph_edge, graph_input_field, workflow_view } from './types.ts';
 
 const VIEW_KEY = 'view';
 
@@ -52,4 +52,32 @@ export function node_output_names(node: graph_node): Set<string> {
 /** 条件边判定（typed conditional edge）。 */
 export function is_condition_edge(edge: graph_edge): boolean {
     return edge.condition !== undefined;
+}
+
+/**
+ * 派生 CONDITION 节点的输入字段。
+ *
+ * 收集给定条件出边中 compare.field 类型为 INTERNAL_REF 的引用（按引用 value 去重），
+ * 使节点声明的 input 与其出边条件引用的上游输出保持一致，而不只存在于边上的条件表达式内。
+ * 纯函数；保证「条件分支依赖哪个上游输出」对 DSL / 运行时输入快照 / 前端展示一致可见。
+ */
+export function condition_node_input(edges: graph_edge[]): graph_input_field[] {
+    const seen = new Set<string>();
+    const result: graph_input_field[] = [];
+    for (const edge of edges) {
+        const compares = edge.condition?.conditions ?? [];
+        for (const compare of compares) {
+            const field = compare.field;
+            if (!field || field.type !== 'INTERNAL_REF') {
+                continue;
+            }
+            const ref = field.value;
+            if (!ref || seen.has(ref)) {
+                continue;
+            }
+            seen.add(ref);
+            result.push({ key: field.key || ref, type: field.type, value: ref });
+        }
+    }
+    return result;
 }

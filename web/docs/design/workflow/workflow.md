@@ -24,7 +24,7 @@
 
 ## 节点目录（dslType 统一）
 
-`create_registry`（[node-registry.tsx](../../../src/components/workflow/nodes/node-registry.tsx)）声明 type → 组件/设置面板/菜单。`entry.type` 是 **DSL 节点类型**（`START/END/CONDITION/DEBUG/SCRIPT`，与后端 `NodeType` 唯一对齐），React Flow 节点 `type` 与之相同。节点数据：`node.data` 携带 canonical 字段 + 派生 `label`（config.name）+ `status`（runtime），画布外壳从 data 读取展示。**节点外壳背景恒为默认样式**，运行状态以「状态色边框（常驻 1px，仅换色不改尺寸）+ 标题行右侧状态pill（状态图标 + 耗时）」区分；待执行（wait）与未启动同视为中性；已成功节点在下方展示可展开的运行结果卡片（`node-result.tsx`，宽度对齐节点、底色不透明，展开为「节点名 运行结果」标题 + 输入/输出只读 `MonacoBody` code 编辑器 + tokens/耗时段脚）。调试节点（DEBUG）输出跟随 `jsonTemplate`，输出字段与模板顶层 key 自动对齐。
+`create_registry`（[node-registry.tsx](../../../src/components/workflow/nodes/node-registry.tsx)）声明 type → 组件/设置面板/菜单。`entry.type` 是 **DSL 节点类型**（`START/END/CONDITION/DEBUG/SCRIPT`，与后端 `NodeType` 唯一对齐），React Flow 节点 `type` 与之相同。节点数据：`node.data` 携带 canonical 字段 + 派生 `label`（config.name）+ `status`（runtime），画布外壳从 data 读取展示。**节点外壳背景恒为默认样式**，运行状态以「状态色边框（常驻 1px，仅换色不改尺寸）+ 标题行右侧状态pill（状态图标 + 耗时）」区分；待执行（wait）与未启动同视为中性；已成功节点在下方展示可展开的运行结果卡片（`node-result.tsx`，宽度对齐节点、底色不透明，展开为「节点名 运行结果」标题 + 输入/输出只读 `MonacoBody` code 编辑器 + tokens/耗时段脚）。输入展示 `NODE_STARTED` 的解析后值快照，输出展示 `NODE_SUCCEEDED` 按 `node.output` 别名映射后的值快照。调试节点（DEBUG）输出跟随 `jsonTemplate`，输出字段与模板顶层 key 自动对齐。
 
 ## 设置面板
 
@@ -36,7 +36,7 @@
 
 **图版本契约**：后端 `StateGraphCompiler` 按 `(workflowId, version)` 缓存编译结果，**DSL 内容变更必须递增 `version` 使缓存失效**。编辑器 reducer 在所有图结构变更动作上自动 `version + 1`（`view/*`、`runtime/*` 不递增），保证每次编辑后的运行都重编译、反映最新内容。
 
-条件分支模型（`pages/workflow/nodes/condition/condition-operator.ts`）：前端分支对象 ↔ canonical `DslCondition` 的双向转换（`branch_to_condition` / `condition_to_branch`），分支是 CONDITION 节点的出边（`edge.condition`）。
+条件分支模型（`pages/workflow/nodes/condition/condition-operator.ts`）：前端分支对象 ↔ canonical `DslCondition` 的双向转换（`branch_to_condition` / `condition_to_branch`），分支是 CONDITION 节点的出边（`edge.condition`）。CONDITION 节点的 `input` 由出边条件引用自动派生（`canonical.condition_node_input`，在 reducer 的 `graph/set_condition_edges` 里随条件编辑同步），使「条件分支依赖的上游输出」对 DSL / 运行时输入快照 / 运行结果卡一致可见。
 
 字段交互语义（`extends/node-field/` 与设置面板）：
 - 输出字段语义为「key 用别名映射为下游引用名」——`node.output` 的 `key` 是 JSON 模板顶层 key，`keyAlias` 是下游引用名（为空时落到 key）。新增输出字段不自动生成别名；填 key 且别名为空时自动同步 alias=key（`NodeField.syncAliasToValue`）；「完整」（key+alias 均填）输出才能被下游引用；同节点 alias 唯一。
@@ -49,7 +49,7 @@
 - **live**：`run()` 提交 DSL → `POST /api/workflow/execute` 得 runId → `EventSource` 订阅 `GET /api/workflow/{runId}/stream`（原生重连 + `Last-Event-ID` 续传）→ 每事件 `dispatch(runtime/apply_event)` 驱动七态
 - **replay**：`load_replay(target_run_id?)` 拉 `GET /api/workflow/{runId}/events` 历史 → 播放/步进/进度条按位置重放（reset 后按序重放 [0, position)）；点击某次执行记录即回放那次运行
 
-服务客户端：[services/workflow.ts](../../../src/services/workflow.ts)（REST + SSE）。右侧检查器为两张卡：①节点配置（`node-setting.tsx`，复用 `components/inspector-card.tsx`，450px）；②事件日志卡片（`replay/event-log-panel.tsx`，宽约 600px）——一张卡内左右分栏：左边「执行记录」list（约 150px，`replay/run-history.tsx`），右边「事件日志」（450px，`replay/event-log.tsx`，每个条目展示完整 trace 事件并可展开查看输入/输出快照，`NODE_STARTED` 带 `input`、`NODE_SUCCEEDED` 带 `output`）。三者复用同一 `InspectorCard`；事件日志卡带 runId 标签与关闭按钮。节点配置由画布选中节点驱动、不再悬浮；事件日志卡仅在被执行过（存在 runs）时出现。执行历史由 `useReplayState` 在本会话内维护（`runs`，新→旧），点击某条经 `load_replay(run_id)` 切入该次执行的回放。控制条：[replay-controls.tsx](../../../src/components/workflow/replay/replay-controls.tsx)。
+服务客户端：[services/workflow.ts](../../../src/services/workflow.ts)（REST + SSE）。右侧检查器为两张卡：①节点配置（`node-setting.tsx`，复用 `components/inspector-card.tsx`，450px）；②事件日志卡片（`replay/event-log-panel.tsx`，宽约 600px）——一张卡内左右分栏：左边「执行记录」list（约 150px，`replay/run-history.tsx`），右边「事件日志」（450px，`replay/event-log.tsx`，每个条目展示完整 trace 事件并可展开查看输入/输出快照，`NODE_STARTED` 带 `input`、`NODE_SUCCEEDED` 带 `output`）。workflow 级执行错误（`error_message`，如执行启动失败）以红色提示条置于卡片顶部。三者复用同一 `InspectorCard`；事件日志卡带 runId 标签与关闭按钮。节点配置由画布选中节点驱动、不再悬浮；事件日志卡仅在被执行过（存在 runs）时出现。执行历史由 `useReplayState` 在本会话内维护（`runs`，新→旧），点击某条经 `load_replay(run_id)` 切入该次执行的回放。控制条：[replay-controls.tsx](../../../src/components/workflow/replay/replay-controls.tsx)。
 
 ## 目录结构
 

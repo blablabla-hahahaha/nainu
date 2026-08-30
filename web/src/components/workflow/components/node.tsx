@@ -66,7 +66,7 @@ export default function Node(props: node_props) {
                     <NodeResult
                         nodeId={props.id}
                         output={runtime.output ?? {}}
-                        input={data?.input}
+                        input={runtime.input}
                         duration={duration}
                         nodeLabel={node_label}
                         error={runtime?.type === 'failed' ? { message: runtime.message, detail: runtime.detail } : undefined}

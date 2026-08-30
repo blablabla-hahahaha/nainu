@@ -12,7 +12,7 @@ export interface node_result_props {
     /** 宿主节点 id（用于将本节点的运行结果置顶）。 */
     nodeId: string;
     output: Record<string, unknown>;
-    /** 节点声明的输入字段（DslInputField[]），无可展示时占位 {}。 */
+    /** 节点解析后的输入快照（运行时真实消费值），无可展示时占位 {}。 */
     input?: unknown;
     /** 节点运行耗时（ms）。 */
     duration?: number;

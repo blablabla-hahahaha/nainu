@@ -58,7 +58,7 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
                     .type(TraceEventType.NODE_SUCCEEDED)
                     .nodeId(definition.getId())
                     .duration(System.currentTimeMillis() - startedAt)
-                    .output(result)
+                    .output(visibleOutput(result))
                     .occurredAt(System.currentTimeMillis())
                     .build());
             return CompletableFuture.completedFuture(writeOutputs(result));
@@ -106,5 +106,27 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
             stateUpdates.put(StateKeys.of(definition.getId(), alias), result.get(o.getKey()));
         }
         return stateUpdates;
+    }
+
+    /**
+     * 计算节点对外可见输出（trace 快照）：按 {@code node.output} 声明把执行器原始结果映射为别名键。
+     *
+     * 仅收录声明在 {@code node.output} 的字段（keyAlias 为空时落回 key），键与 {@link #writeOutputs}
+     * 写回图状态的键一致；原始结果里未声明的 key 属于执行细节，不算节点输出（不可被下游引用）。
+     * 纯映射函数，不依赖注入的 executor / traceEmitter（包内可见，供测试直接断言）。
+     */
+    Map<String, Object> visibleOutput(Map<String, Object> result) {
+        Map<String, Object> visible = new HashMap<>();
+        if (result == null) {
+            return visible;
+        }
+        for (NodeOutputFieldDefinition o : definition.getOutput() == null ? java.util.List.<NodeOutputFieldDefinition>of() : definition.getOutput()) {
+            if (o.getKey() == null || !result.containsKey(o.getKey())) {
+                continue;
+            }
+            String alias = o.getKeyAlias() != null && !o.getKeyAlias().isEmpty() ? o.getKeyAlias() : o.getKey();
+            visible.put(alias, result.get(o.getKey()));
+        }
+        return visible;
     }
 }

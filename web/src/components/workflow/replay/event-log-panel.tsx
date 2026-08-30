@@ -14,6 +14,8 @@ interface event_log_panel_props {
     /** 节点 id → 显示名（供事件日志展示）。 */
     node_names: Record<string, string>;
     active_run_id?: string;
+    /** 工作流级错误信息（如执行启动失败）；存在时在卡片顶部以红色提示条展示。 */
+    error_message?: string;
     /** 点击某条执行记录时回调（回放该次执行）。 */
     on_select_run: (run_id: string) => void;
     /** 关闭整张「执行记录 / 事件日志」卡片时回调。 */
@@ -38,6 +40,7 @@ export default memo(function EventLogPanel({
     runs,
     node_names,
     active_run_id,
+    error_message,
     on_select_run,
     onClose,
 }: event_log_panel_props) {
@@ -67,35 +70,51 @@ export default memo(function EventLogPanel({
                 </Flex>
             }
         >
-            <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
-                <div
-                    style={{
-                        width: RUN_LIST_WIDTH,
-                        boxSizing: 'border-box',
-                        flexShrink: 0,
-                        borderRight: `1px solid ${token.colorBorderSecondary}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minHeight: 0,
-                    }}
-                >
-                    <Typography.Text strong style={{ padding: '8px 20px' }}>执行记录</Typography.Text>
-                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                        <RunHistory runs={runs} active_run_id={active_run_id} on_select={on_select_run} />
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+                {error_message && (
+                    <div style={{
+                        // 保留 alert 原本的圆角/背景/内部 padding，仅去掉边框；margin 按 UI 调整值。
+                        margin: '8px 10px 12px 10px',
+                        padding: '8px 12px',
+                        borderRadius: token.borderRadiusLG,
+                        background: token.colorErrorBg,
+                        color: token.colorError,
+                        fontWeight: 600,
+                        fontSize: 12,
+                    }}>
+                        {error_message}
                     </div>
-                </div>
-                <div
-                    style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minHeight: 0,
-                    }}
-                >
-                    <Typography.Text strong style={{ padding: '8px 12px' }}>事件日志</Typography.Text>
-                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                        <EventLog events={events} node_names={node_names} />
+                )}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                    <div
+                        style={{
+                            width: RUN_LIST_WIDTH,
+                            boxSizing: 'border-box',
+                            flexShrink: 0,
+                            borderRight: `1px solid ${token.colorBorderSecondary}`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0,
+                        }}
+                    >
+                        <Typography.Text strong style={{ padding: '8px 20px' }}>执行记录</Typography.Text>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                            <RunHistory runs={runs} active_run_id={active_run_id} on_select={on_select_run} />
+                        </div>
+                    </div>
+                    <div
+                        style={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0,
+                        }}
+                    >
+                        <Typography.Text strong style={{ padding: '8px 12px' }}>事件日志</Typography.Text>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                            <EventLog events={events} node_names={node_names} />
+                        </div>
                     </div>
                 </div>
             </div>

@@ -142,3 +142,18 @@ export function compute_internal_ref_options(
 
     return result;
 }
+
+/**
+ * 把内部引用值（`nodeId:refName`）渲染为可读标签（`节点显示名 → 引用名`）。
+ *
+ * 条件分支迷你视图用它展示引用关系。节点未找到或格式非法时回退为原始值，绝不抛错。
+ */
+export function internal_ref_label(value: string, node_labels: ReadonlyMap<string, string>): string {
+    const idx = value.indexOf(':');
+    if (idx <= 0 || idx === value.length - 1) {
+        return value;
+    }
+    const node_label = node_labels.get(value.substring(0, idx));
+    const ref_name = value.substring(idx + 1);
+    return node_label ? `${node_label} → ${ref_name}` : value;
+}

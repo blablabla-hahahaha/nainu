@@ -38,10 +38,20 @@ export default function ConditionSettings({ nodeId, onClose }: node_settings_pro
 
     const refresh_branches = (branches: branch_operator_definition[]) => {
         const ensured = branch_operator_definition_support.ensureComplete(branches);
+        // IF/ELIF 分支必须至少携带一条 compare，否则后端会校验失败（「IF 分支必须携带逻辑表达式」）。
+        // 编辑期间表单可能短暂产出无 compare 的分支；此处归一化，避免把非法条件写进 DSL。
+        const safe = ensured.map((branch) => {
+            if (branch.type === 'ELSE' || (branch.compares && branch.compares.length > 0)) {
+                return branch;
+            }
+            return branch.type === 'IF'
+                ? branch_operator_definition_support.getIfDefinition()
+                : branch_operator_definition_support.getElifBranchDefinition();
+        });
         dispatch({
             type: 'graph/set_condition_edges',
             source: nodeId,
-            edges: ensured.map((branch, index) => {
+            edges: safe.map((branch, index) => {
                 const existing = sourceEdges[index];
                 const edgeId = existing?.id || uuid();
                 return {

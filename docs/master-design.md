@@ -61,7 +61,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 4.2 NodeActionAdapter
 
-统一壳（`compile/`）：trace `node_started`（含节点输入快照）→ 输入解析（INTERNAL_REF 读状态）→ delegate 执行器 → trace `node_succeeded/failed`（含输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。`node_failed` 事件把抛出异常的 `errorCategory / errorCode / retryable` 三件套盖到事件上；非 `WorkflowException` 异常默认按 `PLATFORM` 归类（未知异常不甩锅给用户）。
+统一壳（`compile/`）：trace `node_started`（含节点输入快照——解析后的值）→ 输入解析（INTERNAL_REF 读状态）→ delegate 执行器 → trace `node_succeeded/failed`（含按 `node.output` 别名映射后的输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。`node_failed` 事件把抛出异常的 `errorCategory / errorCode / retryable` 三件套盖到事件上；非 `WorkflowException` 异常默认按 `PLATFORM` 归类（未知异常不甩锅给用户）。
 
 ### 4.3 状态 key 约定（workflow/StateKeys）
 

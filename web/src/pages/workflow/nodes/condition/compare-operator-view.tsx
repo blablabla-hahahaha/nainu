@@ -2,6 +2,7 @@ import {
     type compare_operator_definition,
     compare_operator_definition_support,
 } from './condition-operator';
+import { internal_ref_label } from '@/components/workflow/extends/node-field/node-field';
 import { theme } from "antd";
 
 /**
@@ -9,14 +10,19 @@ import { theme } from "antd";
  */
 export interface compare_operator_view_props {
     compare: compare_operator_definition
+    /** 节点 id → 显示名，用于把 INTERNAL_REF 引用解析为可读标签。 */
+    node_labels?: ReadonlyMap<string, string>;
 }
 
 /**
  * 单条 compare 条件迷你视图。
  */
-export default function CompareOperatorView({ compare }: compare_operator_view_props) {
+export default function CompareOperatorView({ compare, node_labels }: compare_operator_view_props) {
     const { token } = theme.useToken();
-    const field = compare_operator_definition_support.stringifyField(compare.field);
+    const is_internal_ref = compare.field.type === 'INTERNAL_REF';
+    const field = is_internal_ref && compare.field.value
+        ? internal_ref_label(compare.field.value, node_labels ?? new Map())
+        : compare_operator_definition_support.stringifyField(compare.field);
     const value = compare_operator_definition_support.stringifyField(compare.value);
     const type = compare_operator_definition_support.getLabel(compare.type);
 

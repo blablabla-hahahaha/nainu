@@ -270,9 +270,13 @@ export function condition_to_branch(condition: graph_condition): branch_operator
  * 前端分支模型 → canonical DslCondition（落 DSL）。
  */
 export function branch_to_condition(branch: branch_operator_definition): graph_condition {
-    const condition: graph_condition = { branchType: branch.type };
-    if (branch.logic) {
-        condition.logicOperator = branch.logic;
+    const type: branch_type = branch.type;
+    const condition: graph_condition = { branchType: type };
+    // IF/ELIF 分支必须携带 logicOperator：单 compare 时表单不渲染「逻辑」选择器，branch.logic 可能缺失。
+    // 此处对 IF/ELIF 默认 AND，使写出的条件恒为 DSL 合法（后端校验要求 logicOperator 非空）。
+    const logic = branch.logic ?? (type === 'IF' || type === 'ELIF' ? branch_operator_definition_support.LOGIC.AND : undefined);
+    if (logic) {
+        condition.logicOperator = logic;
     }
     const compares = (branch.compares ?? []).map((c) => ({
         field: {

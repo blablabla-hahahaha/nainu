@@ -47,6 +47,8 @@ export interface node_runtime_status {
     /** 技术侧错误详情（底层 cause 链简单类名: 消息）；仅失败节点且存在底层原因时携带。 */
     detail?: string;
     duration?: number;
+    /** 解析后的输入快照（来自 NODE_STARTED 事件），运行时真实消费的值。 */
+    input?: Record<string, unknown>;
     output?: Record<string, unknown>;
 }
 

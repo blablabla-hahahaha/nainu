@@ -10,12 +10,14 @@ import CompareOperatorView from "@/pages/workflow/nodes/condition/compare-operat
  */
 export interface branch_operator_view_props {
     branch: branch_operator_definition
+    /** 节点 id → 显示名，用于把 INTERNAL_REF 引用解析为可读标签。 */
+    node_labels?: ReadonlyMap<string, string>;
 }
 
 /**
  * 分支迷你缩略视图（节点卡片内显示）。
  */
-export default function BranchOperatorView({ branch }: branch_operator_view_props) {
+export default function BranchOperatorView({ branch, node_labels }: branch_operator_view_props) {
     const { token } = theme.useToken();
     return (
         <Flex align="center" style={{
@@ -33,6 +35,7 @@ export default function BranchOperatorView({ branch }: branch_operator_view_prop
                     <CompareOperatorView
                         key={index}
                         compare={compare}
+                        node_labels={node_labels}
                     />
                 ))}
             </Flex>

@@ -28,7 +28,15 @@ export async function execute_workflow(graph: workflow_graph, inputParams?: Reco
         }),
     });
     if (!resp.ok) {
-        throw new Error(`执行失败（HTTP ${resp.status}）`);
+        // 后端失败时返回 ExecuteWorkflowResponse.error(msg)，body 带真实原因（如 DSL 校验失败）。
+        let detail: string | undefined;
+        try {
+            const body = (await resp.json()) as execute_response;
+            detail = body.message;
+        } catch {
+            // body 非 JSON 时忽略，仅透出 HTTP 状态。
+        }
+        throw new Error(detail ? `执行失败（HTTP ${resp.status}）：${detail}` : `执行失败（HTTP ${resp.status}）`);
     }
     return (await resp.json()) as execute_response;
 }

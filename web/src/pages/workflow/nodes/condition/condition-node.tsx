@@ -1,3 +1,4 @@
+import {useMemo} from 'react';
 import {Position, useEdges} from '@xyflow/react';
 import { default as LeftHandle } from '@/components/workflow/components/left-handle';
 import { default as RightHandle } from '@/components/workflow/components/right-handle';
@@ -5,6 +6,7 @@ import { default as Node } from '@/components/workflow/components/node';
 import type { node_props } from '@/components/workflow/components/node-types';
 import { condition_to_branch } from './condition-operator';
 import type { graph_condition } from '@/components/workflow/graph/types';
+import { useWorkflowState, node_name } from '@/components/workflow/graph';
 import {Flex, theme} from "antd";
 import BranchOperatorView from "@/pages/workflow/nodes/condition/branch-operator-view.tsx";
 
@@ -13,7 +15,16 @@ import BranchOperatorView from "@/pages/workflow/nodes/condition/branch-operator
  */
 export default function ConditionNode(props: node_props) {
     const { token } = theme.useToken();
+    const { state } = useWorkflowState();
     const sourceEdges = useEdges().filter(e => e.source === props.id);
+    // 节点 id → 显示名，供分支内 INTERNAL_REF 引用解析为「节点名 → 字段」的可读标签。
+    const node_labels = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const n of state.graph.nodes) {
+            map.set(n.id, node_name(n));
+        }
+        return map;
+    }, [state.graph.nodes]);
 
     return (
         <Node {...props}>
@@ -49,7 +60,7 @@ export default function ConditionNode(props: node_props) {
                                 />
                             </Flex>
                             {branch.compares && branch.compares.length > 0 && (
-                                <BranchOperatorView branch={branch} />
+                                <BranchOperatorView branch={branch} node_labels={node_labels} />
                             )}
                         </Flex>
                     );

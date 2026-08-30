@@ -14,7 +14,7 @@ import type {
     trace_event,
 } from './types.ts';
 import { EMPTY_RUNTIME } from './types.ts';
-import { with_view } from './canonical.ts';
+import { with_view, condition_node_input } from './canonical.ts';
 import { uuid } from '@/utils/id-gen';
 
 /**
@@ -133,7 +133,23 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
 
         case 'graph/set_condition_edges': {
             const others = state.graph.edges.filter((e) => e.source !== action.source);
-            return { ...state, graph: bump_graph_version({ ...state.graph, edges: [...others, ...action.edges] }) };
+            const edges = [...others, ...action.edges];
+            // 派生 CONDITION 节点 input：出边 condition 引用的 INTERNAL_REF 字段，随条件编辑同步。
+            const nodes = state.graph.nodes.map((n) => {
+                if (n.id !== action.source || n.type !== 'CONDITION') {
+                    return n;
+                }
+                const next: graph_node = { id: n.id, type: n.type };
+                if (n.config !== undefined) {
+                    next.config = n.config;
+                }
+                if (n.output !== undefined) {
+                    next.output = n.output;
+                }
+                next.input = condition_node_input(action.edges);
+                return next;
+            });
+            return { ...state, graph: bump_graph_version({ ...state.graph, nodes, edges }) };
         }
 
         case 'view/move_node':
@@ -178,7 +194,19 @@ function apply_runtime_event(state: workflow_state, event: trace_event): workflo
         case 'EXECUTION_RESUMED':
             return { ...state.runtime, execution: { ...execution, status: 'running' } };
         case 'NODE_STARTED':
-            return { ...state.runtime, execution, nodes: patch_node(state, event, { type: 'runnable' }) };
+            return { ...state.runtime, execution, nodes: patch_node(state, event, {
+                type: 'runnable',
+                // 参数快照在 NODE_STARTED 时写入；后续 NODE_SUCCEEDED/FAILED 经合并保留。
+                input: event.input,
+                // 重跑时清空本次运行复算的字段（at-least-once 下节点可能重跑）。
+                output: undefined,
+                duration: undefined,
+                message: undefined,
+                errorCategory: undefined,
+                errorCode: undefined,
+                retryable: undefined,
+                detail: undefined,
+            }) };
         case 'NODE_SUCCEEDED':
             return {
                 ...state.runtime,
@@ -221,5 +249,8 @@ function patch_node(
     if (!event.nodeId) {
         return state.runtime.nodes;
     }
-    return { ...state.runtime.nodes, [event.nodeId]: patch };
+    // 合并而非替换：NODE_SUCCEEDED/FAILED 时保留 NODE_STARTED 写入的 input 快照，
+    // 使运行结果卡在节点完成后仍能展示解析后的输入值。
+    const prev = state.runtime.nodes[event.nodeId];
+    return { ...state.runtime.nodes, [event.nodeId]: { ...prev, ...patch } };
 }

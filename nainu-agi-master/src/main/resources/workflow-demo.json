@@ -66,7 +66,19 @@
       "type": "CONDITION",
       "config": {
         "name": "IF/ELIF/ELSE 条件节点"
-      }
+      },
+      "input": [
+        {
+          "key": "username",
+          "type": "INTERNAL_REF",
+          "value": "script_transform:username"
+        },
+        {
+          "key": "age",
+          "type": "INTERNAL_REF",
+          "value": "script_transform:age"
+        }
+      ]
     },
     {
       "id": "end_1",

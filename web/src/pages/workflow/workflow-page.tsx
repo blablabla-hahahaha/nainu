@@ -54,7 +54,7 @@ function init_workflow_state(): workflow_state {
                     { key: 'result_age', keyAlias: 'age' },
                 ],
             },
-            { id: 'condition', type: 'CONDITION', config: { name: '条件分支' } },
+            { id: 'condition', type: 'CONDITION', config: { name: '条件分支' }, input: [{ key: 'username', type: 'INTERNAL_REF', value: 'debug:username' }] },
             { id: 'end_1', type: 'DEBUG', config: { name: '分支一' } },
             { id: 'end_2', type: 'DEBUG', config: { name: '分支二' } },
             { id: 'end', type: 'END', config: { name: '结束' } },
@@ -176,10 +176,18 @@ export default function WorkflowPage() {
         }
     }, [control.runId]);
 
+    // 执行启动即失败（无 runId，如 DSL 校验错误）时也打开调试结果卡，展示错误提示条。
+    useEffect(() => {
+        if (control.execution_status === 'error') {
+            set_show_event_log(true);
+        }
+    }, [control.execution_status]);
+
     const selected_node = state.graph.nodes.find((n) => n.id === selected_node_id);
     const has_runs = control.runs.length > 0;
+    const has_error = !!control.error_message;
     const show_node = !!selected_node;
-    const show_log = has_runs && show_event_log;
+    const show_log = (has_runs || has_error) && show_event_log;
     const show_inspector = show_node || show_log;
 
     return (
@@ -225,6 +233,7 @@ export default function WorkflowPage() {
                                         runs={control.runs}
                                         node_names={node_name_map}
                                         active_run_id={control.runId}
+                                        error_message={control.error_message}
                                         on_select_run={(run_id) => void control.load_replay(run_id)}
                                         onClose={handle_close_log}
                                     />

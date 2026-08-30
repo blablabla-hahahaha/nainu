@@ -92,7 +92,30 @@ export function compute_snap_change(
 }
 
 /**
+ * 判断两个参考线 payload 是否等价（空对象或四边坐标一致），用于避免每帧无意义 setState。
+ */
+function guide_equal(a: guide_line_payload, b: guide_line_payload): boolean {
+    if (a === b) {
+        return true;
+    }
+    const a_is_empty = Object.keys(a).length === 0;
+    const b_is_empty = Object.keys(b).length === 0;
+    if (a_is_empty || b_is_empty) {
+        return a_is_empty && b_is_empty;
+    }
+    const ba = a as guide_line_bounds;
+    const bb = b as guide_line_bounds;
+    return ba.x1 === bb.x1 && ba.x2 === bb.x2 && ba.y1 === bb.y1 && ba.y2 === bb.y2;
+}
+
+/**
  * 钩子：封装 compute_snap_change + guide_line setState。
+ *
+ * 关键点：
+ * - 位置吸附对**所有** position 变更生效（含 React Flow 松手时发出的 `dragging: false` 终态变更），
+ *   否则松手会以未吸附的原始指针位置落点，导致节点相对拖拽中的对齐位置发生偏移。
+ * - 参考线只在活动拖拽（`dragging: true`）期间更新，且仅在其值实际变化时 setState，
+ *   避免每帧构造新的空对象/坐标对象触发多余重渲染（拖拽卡顿的诱因之一）。
  */
 export function useSnapGuide(
     nodes: Node[],
@@ -102,37 +125,49 @@ export function useSnapGuide(
     const nodes_ref = useRef(nodes);
     nodes_ref.current = nodes;
 
+    const horizontal_guide_ref = useRef<guide_line_payload>({});
+    const vertical_guide_ref = useRef<guide_line_payload>({});
+
+    const update_horizontal_guide = useCallback((value: guide_line_payload) => {
+        if (guide_equal(horizontal_guide_ref.current, value)) {
+            return;
+        }
+        horizontal_guide_ref.current = value;
+        set_horizontal_guide_lines(value);
+    }, [set_horizontal_guide_lines]);
+
+    const update_vertical_guide = useCallback((value: guide_line_payload) => {
+        if (guide_equal(vertical_guide_ref.current, value)) {
+            return;
+        }
+        vertical_guide_ref.current = value;
+        set_vertical_guide_lines(value);
+    }, [set_vertical_guide_lines]);
+
     const apply_snap_to_change = useCallback(<T extends { id: string; type: string; position?: { x: number; y: number }; dragging?: boolean }>(
         change: T,
     ): T => {
-        if (!(change.type === 'position' && change.dragging && change.position)) {
+        if (!(change.type === 'position' && change.position)) {
             return change;
         }
 
         const result = compute_snap_change(change.id, nodes_ref.current, { x: change.position.x, y: change.position.y });
 
-        if (result.guide.horizontal) {
-            set_horizontal_guide_lines(result.guide.horizontal);
-        } else {
-            set_horizontal_guide_lines({});
-        }
-
-        if (result.guide.vertical) {
-            set_vertical_guide_lines(result.guide.vertical);
-        } else {
-            set_vertical_guide_lines({});
+        if (change.dragging) {
+            update_horizontal_guide(result.guide.horizontal ?? {});
+            update_vertical_guide(result.guide.vertical ?? {});
         }
 
         return {
             ...change,
             position: { x: result.x, y: result.y },
         };
-    }, [set_horizontal_guide_lines, set_vertical_guide_lines]);
+    }, [update_horizontal_guide, update_vertical_guide]);
 
     const reset_guide_lines = useCallback(() => {
-        set_horizontal_guide_lines({});
-        set_vertical_guide_lines({});
-    }, [set_horizontal_guide_lines, set_vertical_guide_lines]);
+        update_horizontal_guide({});
+        update_vertical_guide({});
+    }, [update_horizontal_guide, update_vertical_guide]);
 
     return { apply_snap_to_change, reset_guide_lines };
 }

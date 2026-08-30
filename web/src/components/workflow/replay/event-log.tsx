@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Flex, List, Tag, Typography } from "antd";
 import { theme } from "antd";
 import type { trace_event, trace_event_type } from '@/components/workflow/graph';
@@ -20,8 +21,10 @@ const EVENT_COLORS: Record<trace_event_type, string> = {
 
 /**
  * 事件日志侧栏（live 实时追加；replay 随位置高亮）。
+ * memo：拖拽等高频 view 变更令页面重渲染，但 events 引用在拖拽期间稳定（useReplayState useMemo），
+ * 避免拖动节点时无谓重渲整个事件列表。
  */
-export default function EventLog({ events }: event_log_props) {
+export default memo(function EventLog({ events }: event_log_props) {
     const { token } = theme.useToken();
     return (
         <div
@@ -62,4 +65,4 @@ export default function EventLog({ events }: event_log_props) {
             />
         </div>
     );
-}
+});

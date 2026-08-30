@@ -17,14 +17,27 @@ const AUTO_POSITION_STEP_X = 50;
 const AUTO_POSITION_STEP_Y = 30;
 
 /**
+ * 被点击置顶节点的投影 zIndex。
+ *
+ * 运行结果面板（node-result）是节点的绝对定位子元素，故其层叠被本节点
+ * （`.react-flow__node` 具有非 auto zIndex 形成 stacking context）约束；
+ * 要让被点击节点的运行结果盖过其它节点，必须抬高该节点本身的 zIndex。
+ * 该值需高于 React Flow 选中节点抬高量（SELECTED_NODE_Z=1000），
+ * 保证置顶节点在其它节点（含选中/拖拽中节点）之上。
+ */
+const TOP_RESULT_Z = 2000;
+
+/**
  * 构建单个 ReactFlow 节点（canonical 节点 → 投影节点）。
  * measured 提供时字段随节点携带，供 adoptUserNodes 保持节点已测尺寸（避免重测闪烁）。
+ * zIndex 提供时写入节点，用于被点击置顶的运行结果节点盖过其它节点。
  */
 function build_rf_node(
     n: graph_node,
     position: { x: number; y: number },
     status: node_runtime_status | undefined,
     measured?: { width: number; height: number },
+    zIndex?: number,
 ): Node {
     const node: Node = {
         id: n.id,
@@ -38,6 +51,9 @@ function build_rf_node(
     };
     if (measured) {
         node.measured = measured;
+    }
+    if (zIndex !== undefined) {
+        node.zIndex = zIndex;
     }
     return node;
 }
@@ -81,12 +97,13 @@ export function from_canonical(
     return { nodes, edges };
 }
 
-/** 单节点投影缓存条目：输入指纹（canonical 引用 / 位置 / 状态）+ 稳定投影对象。 */
+/** 单节点投影缓存条目：输入指纹（canonical 引用 / 位置 / 状态 / zIndex）+ 稳定投影对象。 */
 interface node_projection_entry {
     node: Node;
     source: graph_node;
     position: { x: number; y: number };
     status: node_runtime_status | undefined;
+    zIndex: number | undefined;
 }
 
 /** 单边投影缓存条目：canonical 引用 + 稳定投影对象。 */
@@ -119,6 +136,7 @@ export function project_stable(
     runtime: workflow_runtime | undefined,
     cache: projection_cache,
     node_lookup?: ReadonlyMap<string, { measured?: projection_node_measure }>,
+    topNodeId?: string | null,
 ): workflow_projection {
     let autoIndex = 0;
     const next_nodes = new Map<string, node_projection_entry>();
@@ -129,6 +147,7 @@ export function project_stable(
         };
         autoIndex++;
         const status = runtime?.nodes[n.id];
+        const zIndex = n.id === topNodeId ? TOP_RESULT_Z : undefined;
         const prev = cache.nodes.get(n.id);
         if (
             prev
@@ -136,6 +155,7 @@ export function project_stable(
             && prev.position.x === position.x
             && prev.position.y === position.y
             && prev.status === status
+            && prev.zIndex === zIndex
         ) {
             next_nodes.set(n.id, prev);
             return prev.node;
@@ -148,8 +168,9 @@ export function project_stable(
             measured && typeof measured.width === 'number' && typeof measured.height === 'number'
                 ? { width: measured.width, height: measured.height }
                 : undefined,
+            zIndex,
         );
-        next_nodes.set(n.id, { node, source: n, position, status });
+        next_nodes.set(n.id, { node, source: n, position, status, zIndex });
         return node;
     });
 

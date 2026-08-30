@@ -34,6 +34,10 @@ export interface monaco_body_props {
      */
     read_only: boolean;
     /**
+     * 编辑器字号（px）。默认 14；运行结果等紧凑场景可传更小值以容纳更多内容。
+     */
+    font_size?: number;
+    /**
      * 内容变化回调
      */
     on_content_change: (content: string) => void;
@@ -52,6 +56,7 @@ export default function MonacoBody({
     theme,
     width,
     read_only,
+    font_size = 14,
     on_content_change,
     on_mount,
 }: monaco_body_props) {
@@ -65,7 +70,7 @@ export default function MonacoBody({
     const editor_options = useMemo(
         () => ({
             minimap: { enabled: false },
-            fontSize: 14,
+            fontSize: font_size,
             scrollBeyondLastLine: false,
             automaticLayout: true,
             glyphMargin: false,
@@ -82,7 +87,7 @@ export default function MonacoBody({
             ariaLabel: '代码编辑器',
             readOnly: read_only,
         }),
-        [read_only],
+        [read_only, font_size],
     );
 
     return (

@@ -33,7 +33,10 @@ export function useWorkflowChanges(
     nodes_ref.current = nodes;
 
     const onNodesChange = useCallback((changes: NodeChange<Node>[]) => {
-        reset_guide_lines();
+        const has_live_drag = changes.some((c) => c.type === 'position' && c.dragging);
+        if (!has_live_drag) {
+            reset_guide_lines();
+        }
 
         const filtered = changes.filter(change => {
             if (change.type !== 'remove') return true;

@@ -1,7 +1,7 @@
+import { memo } from "react";
 import { Button, Divider, Flex, Select, Slider, Tag, Tooltip, Typography } from "antd";
 import {
     CaretRightOutlined,
-    HistoryOutlined,
     PauseCircleOutlined,
     PauseOutlined,
     PlayCircleOutlined,
@@ -15,15 +15,17 @@ interface replay_controls_props {
 }
 
 const speed_options = [
-    { value: 1, label: '1x' },
-    { value: 2, label: '2x' },
-    { value: 4, label: '4x' },
+    { value: 2, label: '1x' },
+    { value: 4, label: '2x' },
+    { value: 8, label: '4x' },
 ];
 
 /**
  * 运行与回放控制条：运行/暂停/恢复（live）+ 回放/播放/步进/进度（replay）。
+ * memo：拖拽等高频 view 变更令页面重渲染，但 control 引用在拖拽期间稳定（useReplayState useMemo），
+ * 避免拖动节点时无谓重渲整条控制条。
  */
-export default function ReplayControls({ control }: replay_controls_props) {
+export default memo(function ReplayControls({ control }: replay_controls_props) {
     const { token } = theme.useToken();
     const is_replay = control.mode === 'replay';
     const is_running = control.execution_status === 'running';
@@ -65,19 +67,10 @@ export default function ReplayControls({ control }: replay_controls_props) {
 
             <Divider type="vertical" />
 
-            <Tooltip title="加载该次执行的事件历史，进入回放模式">
-                <Button
-                    icon={<HistoryOutlined />}
-                    onClick={() => control.load_replay()}
-                    disabled={!control.runId}
-                >
-                    回放
-                </Button>
-            </Tooltip>
             <Button
                 icon={control.playing ? <PauseOutlined /> : <CaretRightOutlined />}
-                onClick={() => (control.playing ? control.stop_play() : control.play())}
-                disabled={!is_replay}
+                onClick={() => (control.playing ? control.stop_play() : void control.play())}
+                disabled={!control.runId}
             >
                 {control.playing ? '暂停播放' : '播放'}
             </Button>
@@ -118,7 +111,7 @@ export default function ReplayControls({ control }: replay_controls_props) {
             )}
         </Flex>
     );
-}
+});
 
 function execution_tag_color(status: string): string {
     switch (status) {

@@ -64,6 +64,7 @@ export default function Node(props: node_props) {
                 )}
                 {runtime?.output !== undefined && (
                     <NodeResult
+                        nodeId={props.id}
                         output={runtime.output}
                         input={data?.input}
                         duration={duration}

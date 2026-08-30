@@ -16,6 +16,12 @@ Status: implemented
 
 实现上把投影 + ReactFlow 画布拆到 [workflow-canvas.tsx](../../../../web/src/components/workflow/components/workflow-canvas.tsx)（位于 `ReactFlowProvider` 内，方能 `useStore` 读 `nodeLookup`），[workflow.tsx](../../../../web/src/components/workflow/workflow.tsx) 仅保留 provider + 状态上下文。同时把 `onNodesChange` / `onEdgesChange` 稳定化：[use-snap-guide.ts](../../../../web/src/components/workflow/components/use-snap-guide.ts) 与 [use-workflow-changes.ts](../../../../web/src/components/workflow/components/use-workflow-changes.ts) 用 `nodes` ref 读最新节点快照，去掉回调对 `nodes` 数组的依赖（其引用每帧变化会反复触发 `StoreUpdater` 重跑）。
 
+**拖拽松手吸附偏移修复**：位置吸附（`apply_snap_to_change`）对**所有** `position` 变更生效——含 React Flow 松手时以 `dragging: false` 发出的终态变更。此前仅吸附 `dragging: true` 的活动拖拽变更，松手的未吸附原始指针位置被直接提交，节点相对拖拽中对齐好的位置发生偏移。
+
+**拖拽卡顿进一步收敛**：
+- 参考线只在活动拖拽（`dragging: true`）期间更新，并用 ref 记录上次值、仅在实际变化时 setState，避免每帧构造新的空对象/坐标对象触发多余重渲染；`onNodesChange` 仅在批次内无活动拖拽时清空参考线，消除「清除+重设」的每帧抖动。
+- `useReplayState` 用 `useMemo` 稳定 `control` 引用（拖拽期间 `state.graph` 不变，`control` 依赖均稳定）；`ReplayControls` 与 `EventLog` 包 `React.memo`，使拖拽引致的页面重渲染不再级联到控制条与事件日志（后者在运行后可能含大量事件，最昂贵）。
+
 ## Alternatives considered
 
 **carry `width`/`height`/`initialWidth` 固定值兜底**：在投影节点上写死 CSS 宽高（节点壳宽 235px），使 `hasDimensions` 恒真。简单，但高度随内容/状态变化，写死值会在 1 帧内错位 handle；且引入魔法数、违背「禁止魔法数」，未采用。
@@ -32,3 +38,5 @@ Status: implemented
 - `from_canonical` 与 round-trip（`verify-dsl-contract`）语义不变，`project_stable` 为新增纯函数，门禁用例仍通过。
 - 代价：`Workflow` 拆出 `WorkflowCanvas`，投影逻辑从页面组件下沉一层；`project_stable` 额外接收 `node_lookup`，耦合到 React Flow 内部节点类型（以结构化类型收窄）。
 - `WorkflowCanvas` 里 `@xyflow/react/dist/style.css` 的引入需位于组件导入之前，否则 React Flow 基础 `.react-flow__handle`（暗色默认背景 `#1a192b`）会按加载顺序覆盖自定义 `.handle-host`，连接点渲染成黑点。为顺序无关，`status.module.css` 的 `.handle-host` 提权为 `.react-flow__handle.handle-host`（特异性 0,2,0）。
+- 松手时终态 `position` 变更同样被吸附，节点停在与拖拽中对齐一致的位置（不再出现「吸附准、松手偏」）。
+- 参考线更新只在值变化时 setState，且不被每帧「清除+重设」抖动，减少拖拽期间无谓重渲染；`ReplayControls` / `EventLog` 因 `control` / `events` 引用稳定而不随拖拽重渲。

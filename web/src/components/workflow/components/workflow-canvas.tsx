@@ -19,6 +19,7 @@ import { project_stable } from '../graph';
 import type { workflow_state, projection_cache } from '../graph';
 import type { workflow_action } from '../graph/reducer';
 import type { node_registry } from '../nodes';
+import { run_result_context } from './run-result-context';
 
 interface workflow_canvas_props {
     registry: node_registry;
@@ -39,13 +40,24 @@ export default function WorkflowCanvas({ registry, state, dispatch }: workflow_c
     const { token } = theme.useToken();
     const node_lookup = useStore((s) => s.nodeLookup);
     const projection_cache_ref = useRef<projection_cache>({ nodes: new Map(), edges: new Map() });
-    const { nodes, edges } = useMemo(
-        () => project_stable(state.graph, state.view, state.runtime, projection_cache_ref.current, node_lookup),
-        [state.graph, state.view, state.runtime, node_lookup],
-    );
     const [horizontalGuideLines, setHorizontalGuideLines] = useState<guide_lines>({});
     const [verticalGuideLines, setVerticalGuideLines] = useState<guide_lines>({});
     const [selection, setSelection] = useState<selection_state>({ type: 'none' });
+    const [top_node_id, set_top_node_id] = useState<string | null>(null);
+
+    const activate_node = useCallback((node_id: string) => {
+        set_top_node_id(node_id);
+    }, []);
+
+    const run_result_value = useMemo(
+        () => ({ top_node_id, activate_node }),
+        [top_node_id, activate_node],
+    );
+
+    const { nodes, edges } = useMemo(
+        () => project_stable(state.graph, state.view, state.runtime, projection_cache_ref.current, node_lookup, top_node_id),
+        [state.graph, state.view, state.runtime, node_lookup, top_node_id],
+    );
 
     const guide = useMemo(() => ({
         setHorizontal: setHorizontalGuideLines,
@@ -58,6 +70,7 @@ export default function WorkflowCanvas({ registry, state, dispatch }: workflow_c
 
     const on_open_node_setting = useCallback((_: MouseEvent, node: Node) => {
         setSelection({ type: 'node', nodeId: node.id, node });
+        set_top_node_id(node.id);
     }, []);
 
     const on_close_node_setting = useCallback(() => {
@@ -78,35 +91,37 @@ export default function WorkflowCanvas({ registry, state, dispatch }: workflow_c
     }, [dispatch]);
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={on_connect}
-                onNodeClick={on_open_node_setting}
-                onEdgeClick={on_edge_click}
-                onPaneClick={() => { setSelection({ type: 'none' }); }}
-                defaultEdgeOptions={{ type: 'edge' }}
-                fitView
-            >
-                <Background
-                    gap={8}
-                    color={token.colorFill}
-                    bgColor={token.colorBgLayout}
+        <run_result_context.Provider value={run_result_value}>
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={on_connect}
+                    onNodeClick={on_open_node_setting}
+                    onEdgeClick={on_edge_click}
+                    onPaneClick={() => { setSelection({ type: 'none' }); }}
+                    defaultEdgeOptions={{ type: 'edge' }}
+                    fitView
+                >
+                    <Background
+                        gap={8}
+                        color={token.colorFill}
+                        bgColor={token.colorBgLayout}
+                    />
+                    <Controls />
+                    <GuideLine {...horizontalGuideLines} />
+                    <GuideLine {...verticalGuideLines} />
+                </ReactFlow>
+                <NodeSettingProvider
+                    node={selection.type === 'node' ? selection.node : null}
+                    onClose={on_close_node_setting}
+                    nodeSettingTypes={nodeSettingTypes}
                 />
-                <Controls />
-                <GuideLine {...horizontalGuideLines} />
-                <GuideLine {...verticalGuideLines} />
-            </ReactFlow>
-            <NodeSettingProvider
-                node={selection.type === 'node' ? selection.node : null}
-                onClose={on_close_node_setting}
-                nodeSettingTypes={nodeSettingTypes}
-            />
-        </div>
+            </div>
+        </run_result_context.Provider>
     );
 }

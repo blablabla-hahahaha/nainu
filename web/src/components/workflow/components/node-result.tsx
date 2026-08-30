@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Button } from 'antd';
 import { DownOutlined, UpOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 import { MonacoBody } from '@/components/monaco-code-editor';
+import { useRunResultContext } from './run-result-context';
 import styles from './status.module.css';
 
 /**
  * NodeResult Props。
  */
 export interface node_result_props {
+    /** 宿主节点 id（用于将本节点的运行结果置顶）。 */
+    nodeId: string;
     output: Record<string, unknown>;
     /** 节点声明的输入字段（DslInputField[]），无可展示时占位 {}。 */
     input?: unknown;
@@ -20,12 +23,19 @@ export interface node_result_props {
 const CONTENT_LANGUAGE = 'json' as const;
 
 /**
- * 节点运行结果卡片（参考行业 UI）：在节点下方渲染，宽度对齐节点、底色不透明。
- * 折叠态为一条扁平的「展开结果」按钮；展开后为面板——标题 + 输入/输出只读 code 编辑器（行号/语法高亮，可框选 Ctrl+C）+ tokens/耗时统计。
- * 点击阻止冒泡，避免触发节点拖拽/选中。
+ * 运行结果编辑器字号：比默认（14）小，便于在有限面板内展示更多内容。
  */
-export default function NodeResult({ output, input, duration, nodeLabel }: node_result_props) {
+const RESULT_EDITOR_FONT_SIZE = 12;
+
+/**
+ * 节点运行结果卡片（参考行业 UI）：在节点下方渲染为一条更宽的结果面板，底色不透明。
+ * 折叠态为一条扁平的「展开结果」按钮；展开后为面板——标题 + 输入/输出只读 code 编辑器（行号/语法高亮，可框选 Ctrl+C）+ tokens/耗时统计。
+ * 点击阻止冒泡，避免触发节点拖拽/选中；根节点挂载 React Flow 的 nodrag 类，
+ * 使其不参与节点拖拽（以便框选复制其中文本），展开/收起时把本节点运行结果置顶到其它节点之上。
+ */
+export default function NodeResult({ nodeId, output, input, duration, nodeLabel }: node_result_props) {
     const [is_expanded, set_is_expanded] = useState(false);
+    const { activate_node } = useRunResultContext();
 
     const output_text = JSON.stringify(output, null, 2);
     const has_input = Array.isArray(input)
@@ -39,16 +49,21 @@ export default function NodeResult({ output, input, duration, nodeLabel }: node_
         void navigator.clipboard?.writeText(text);
     };
 
+    const toggle_expanded = () => {
+        activate_node(nodeId);
+        set_is_expanded(!is_expanded);
+    };
+
     return (
         <div
-            className={styles['node-result']}
+            className={`${styles['node-result']} nodrag`}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
         >
             <button
                 className={styles['node-result-toggle']}
-                onClick={() => set_is_expanded(!is_expanded)}
+                onClick={toggle_expanded}
             >
                 <span>{is_expanded ? '收起结果' : '展开结果'}</span>
                 {is_expanded ? <UpOutlined /> : <DownOutlined />}
@@ -76,6 +91,7 @@ export default function NodeResult({ output, input, duration, nodeLabel }: node_
                             theme="vs-dark"
                             width="100%"
                             read_only
+                            font_size={RESULT_EDITOR_FONT_SIZE}
                             on_content_change={() => undefined}
                             on_mount={() => undefined}
                         />
@@ -92,6 +108,7 @@ export default function NodeResult({ output, input, duration, nodeLabel }: node_
                             theme="vs-dark"
                             width="100%"
                             read_only
+                            font_size={RESULT_EDITOR_FONT_SIZE}
                             on_content_change={() => undefined}
                             on_mount={() => undefined}
                         />

@@ -2,7 +2,7 @@
  * 回放状态钩子：live（EventSource 实时跟随）与 replay（历史步进/播放）双模式。
  * 事件统一经 dispatch(runtime/apply_event) 驱动 runtime 切片（与编辑器共用 reducer）。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch } from 'react';
 import type { workflow_action, workflow_graph, trace_event } from '@/components/workflow/graph';
 import {
@@ -36,13 +36,19 @@ export interface replay_control {
     run: () => Promise<void>;
     pause: () => Promise<void>;
     resume: () => Promise<void>;
-    load_replay: () => Promise<void>;
-    play: () => void;
+    load_replay: () => Promise<boolean>;
+    play: () => Promise<void>;
     stop_play: () => void;
     step: () => void;
     seek: (position: number) => void;
     set_speed: (speed: number) => void;
 }
+
+/**
+ * 播放计时器最小步进间隔（ms）。倍速重标定后最高档（新 4x = 旧 8x = speed 8）
+ * 对应约 125ms/步，故下限低于原 250ms，保证各档（500/250/125ms）实际递进不坍缩。
+ */
+const MIN_PLAYBACK_INTERVAL = 100;
 
 export function useReplayState(
     graph: workflow_graph,
@@ -53,7 +59,7 @@ export function useReplayState(
     const [events, setEvents] = useState<trace_event[]>([]);
     const [position, setPosition] = useState(0);
     const [playing, setPlaying] = useState(false);
-    const [speed, setSpeed] = useState(1);
+    const [speed, setSpeed] = useState(2);
     const [execution_status, setExecutionStatus] = useState<replay_execution_status>('idle');
     const [error_message, setErrorMessage] = useState<string>();
     const events_ref = useRef<trace_event[]>([]);
@@ -77,13 +83,15 @@ export function useReplayState(
         }
         timer_ref.current = window.setInterval(() => {
             setPosition((p) => {
-                const next = Math.min(p + 1, events_ref.current.length);
-                if (next === events_ref.current.length) {
+                const length = events_ref.current.length;
+                const next = Math.min(p + 1, length);
+                // 播放到末尾即在末帧停下（不自动循环），等用户再次点播放时从头
+                if (next === length) {
                     setPlaying(false);
                 }
                 return next;
             });
-        }, Math.max(250, 1000 / speed));
+        }, Math.max(MIN_PLAYBACK_INTERVAL, 1000 / speed));
         return () => {
             if (timer_ref.current !== null) {
                 window.clearInterval(timer_ref.current);
@@ -163,9 +171,9 @@ export function useReplayState(
         }
     }, [runId]);
 
-    const load_replay = useCallback(async () => {
+    const load_replay = useCallback(async (): Promise<boolean> => {
         if (!runId) {
-            return;
+            return false;
         }
         try {
             const loaded = await fetch_events(runId);
@@ -178,26 +186,46 @@ export function useReplayState(
                 loaded.some((e) => e.type === 'EXECUTION_COMPLETED') ? 'completed' : 'idle',
             );
             apply_up_to(0);
+            return loaded.length > 0;
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : String(error));
+            return false;
         }
     }, [runId, apply_up_to]);
 
-    const play = useCallback(() => {
-        if (mode === 'replay') {
-            setPlaying(true);
+    const play = useCallback(async () => {
+        if (playing) {
+            return;
         }
-    }, [mode]);
+        // 播放即回放：不在回放模式时先加载事件历史并切入回放，再开始播放
+        if (mode !== 'replay') {
+            const loaded = await load_replay();
+            if (!loaded) {
+                return;
+            }
+        } else if (position >= events_ref.current.length) {
+            // 已播放完毕（停在末尾），再次播放则从头开始
+            setPosition(0);
+        }
+        setPlaying(true);
+    }, [playing, mode, position, load_replay]);
 
     const stop_play = useCallback(() => setPlaying(false), []);
 
     const step = useCallback(() => {
-        setPosition((p) => Math.min(p + 1, events_ref.current.length));
+        setPosition((p) => {
+            const length = events_ref.current.length;
+            // 已播放完毕（停在末尾）时，步进则从头（复位到 0）再前进
+            if (length > 0 && p >= length) {
+                return 0;
+            }
+            return Math.min(p + 1, length);
+        });
     }, []);
 
     const seek = useCallback((pos: number) => setPosition(pos), []);
 
-    return {
+    return useMemo(() => ({
         runId,
         mode,
         events,
@@ -215,5 +243,23 @@ export function useReplayState(
         step,
         seek,
         set_speed: setSpeed,
-    };
+    }), [
+        runId,
+        mode,
+        events,
+        position,
+        playing,
+        speed,
+        execution_status,
+        error_message,
+        run,
+        pause,
+        resume,
+        load_replay,
+        play,
+        stop_play,
+        step,
+        seek,
+        setSpeed,
+    ]);
 }

@@ -49,6 +49,11 @@ public class TraceEvent {
 
     private Map<String, Object> output;
 
+    /**
+     * 节点执行输入快照（解析后的 value，INTERNAL_REF 已读出上游值）。可选；仅 NODE_STARTED 携带。
+     */
+    private Map<String, Object> input;
+
     private long occurredAt;
 
     /**

@@ -43,14 +43,16 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
     public CompletableFuture<Map<String, Object>> apply(OverAllState state, RunnableConfig config) {
         String runId = config.threadId().orElse(null);
         long startedAt = System.currentTimeMillis();
+        Map<String, Object> resolvedInputs = resolveInputs(state);
         traceEmitter.emit(TraceEvent.builder()
                 .runId(runId)
                 .type(TraceEventType.NODE_STARTED)
                 .nodeId(definition.getId())
+                .input(resolvedInputs)
                 .occurredAt(startedAt)
                 .build());
         try {
-            Map<String, Object> result = executeSync(state);
+            Map<String, Object> result = executeSync(state, resolvedInputs);
             traceEmitter.emit(TraceEvent.builder()
                     .runId(runId)
                     .type(TraceEventType.NODE_SUCCEEDED)
@@ -76,8 +78,7 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
         }
     }
 
-    private Map<String, Object> executeSync(OverAllState state) {
-        Map<String, Object> resolvedInputs = resolveInputs(state);
+    private Map<String, Object> executeSync(OverAllState state, Map<String, Object> resolvedInputs) {
         Map<String, Object> result = executor.execute(
                 new NodeExecuteRequest(definition.getId(), definition.getType(), definition.getConfig(), resolvedInputs));
         return result;

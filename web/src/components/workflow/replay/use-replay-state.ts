@@ -24,6 +24,15 @@ export type replay_execution_status =
     | 'suspended'
     | 'error';
 
+/**
+ * 单次执行记录（历史列表项）。
+ */
+export interface run_history_entry {
+    runId: string;
+    status: replay_execution_status;
+    startedAt: number;
+}
+
 export interface replay_control {
     runId?: string;
     mode: replay_mode;
@@ -33,10 +42,13 @@ export interface replay_control {
     speed: number;
     execution_status: replay_execution_status;
     error_message?: string;
+    /** 执行历史（新→旧）；页面据此渲染「执行记录」卡片。 */
+    runs: run_history_entry[];
     run: () => Promise<void>;
     pause: () => Promise<void>;
     resume: () => Promise<void>;
-    load_replay: () => Promise<boolean>;
+    /** 加载事件历史并切入 replay；不传 runId 时复用当前 runId。 */
+    load_replay: (target_run_id?: string) => Promise<boolean>;
     play: () => Promise<void>;
     stop_play: () => void;
     step: () => void;
@@ -62,11 +74,23 @@ export function useReplayState(
     const [speed, setSpeed] = useState(2);
     const [execution_status, setExecutionStatus] = useState<replay_execution_status>('idle');
     const [error_message, setErrorMessage] = useState<string>();
+    const [runs, setRuns] = useState<run_history_entry[]>([]);
     const events_ref = useRef<trace_event[]>([]);
     const source_ref = useRef<EventSource | null>(null);
     const timer_ref = useRef<number | null>(null);
 
     events_ref.current = events;
+
+    /** 历史列表：新 runId 去重头插；已存在则更新状态。 */
+    const upsert_run = useCallback((run_id: string, status: replay_execution_status) => {
+        setRuns((prev) => {
+            const exists = prev.some((r) => r.runId === run_id);
+            if (exists) {
+                return prev.map((r) => (r.runId === run_id ? { ...r, status } : r));
+            }
+            return [{ runId: run_id, status, startedAt: Date.now() }, ...prev];
+        });
+    }, []);
 
     /** 重放核心：reset 后按序重放 [0, end) 到 runtime 切片。 */
     const apply_up_to = useCallback((end: number) => {
@@ -127,13 +151,17 @@ export function useReplayState(
             if (!response.runId) {
                 throw new Error(response.message ?? '执行未返回 runId');
             }
-            setRunId(response.runId);
-            source_ref.current = open_trace_stream(response.runId, {
+            const run_id = response.runId;
+            setRunId(run_id);
+            upsert_run(run_id, 'running');
+            source_ref.current = open_trace_stream(run_id, {
                 on_event: (event) => {
                     setEvents((prev) => [...prev, event]);
                     dispatch({ type: 'runtime/apply_event', event });
                     if (event.type === 'EXECUTION_COMPLETED' || event.type === 'EXECUTION_FAILED') {
-                        setExecutionStatus(event.type === 'EXECUTION_COMPLETED' ? 'completed' : 'failed');
+                        const status = event.type === 'EXECUTION_COMPLETED' ? 'completed' : 'failed';
+                        setExecutionStatus(status);
+                        upsert_run(run_id, status);
                         source_ref.current?.close();
                     }
                 },
@@ -145,7 +173,7 @@ export function useReplayState(
             setExecutionStatus('error');
             setErrorMessage(error instanceof Error ? error.message : String(error));
         }
-    }, [graph, dispatch]);
+    }, [graph, dispatch, upsert_run]);
 
     const pause = useCallback(async () => {
         if (!runId) {
@@ -154,10 +182,11 @@ export function useReplayState(
         try {
             await pause_run(runId);
             setExecutionStatus('paused');
+            upsert_run(runId, 'paused');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : String(error));
         }
-    }, [runId]);
+    }, [runId, upsert_run]);
 
     const resume = useCallback(async () => {
         if (!runId) {
@@ -166,32 +195,40 @@ export function useReplayState(
         try {
             await resume_run(runId);
             setExecutionStatus('running');
+            upsert_run(runId, 'running');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : String(error));
         }
-    }, [runId]);
+    }, [runId, upsert_run]);
 
-    const load_replay = useCallback(async (): Promise<boolean> => {
-        if (!runId) {
+    const load_replay = useCallback(async (target_run_id?: string): Promise<boolean> => {
+        const target = target_run_id ?? runId;
+        if (!target) {
             return false;
         }
         try {
-            const loaded = await fetch_events(runId);
+            const loaded = await fetch_events(target);
             source_ref.current?.close();
+            // 立即同步 events_ref（否则 apply_up_to 会读到旧事件，导致按新长度取值越界取到 undefined）
+            events_ref.current = loaded;
+            setRunId(target);
             setEvents(loaded);
             setMode('replay');
-            setPosition(0);
+            // 切换记录后定位到「全部事件已重放」的末尾帧，直接展示那次执行完成后的整体状态
+            setPosition(loaded.length);
             setPlaying(false);
-            setExecutionStatus(
-                loaded.some((e) => e.type === 'EXECUTION_COMPLETED') ? 'completed' : 'idle',
-            );
-            apply_up_to(0);
+            const status = loaded.some((e) => e.type === 'EXECUTION_COMPLETED')
+                ? 'completed'
+                : (loaded.some((e) => e.type === 'EXECUTION_FAILED') ? 'failed' : 'idle');
+            setExecutionStatus(status);
+            upsert_run(target, status);
+            apply_up_to(loaded.length);
             return loaded.length > 0;
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : String(error));
             return false;
         }
-    }, [runId, apply_up_to]);
+    }, [runId, apply_up_to, upsert_run]);
 
     const play = useCallback(async () => {
         if (playing) {
@@ -203,6 +240,8 @@ export function useReplayState(
             if (!loaded) {
                 return;
             }
+            // load_replay 定位到末尾帧（展示完成状态）；这里播放从头开始
+            setPosition(0);
         } else if (position >= events_ref.current.length) {
             // 已播放完毕（停在末尾），再次播放则从头开始
             setPosition(0);
@@ -234,6 +273,7 @@ export function useReplayState(
         speed,
         execution_status,
         error_message,
+        runs,
         run,
         pause,
         resume,
@@ -252,6 +292,7 @@ export function useReplayState(
         speed,
         execution_status,
         error_message,
+        runs,
         run,
         pause,
         resume,

@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, Card, Flex, notification, theme, Tooltip } from "antd";
+import { Button, Flex, notification, theme, Tooltip } from "antd";
 import { ApiOutlined, CloseOutlined, PlayCircleOutlined } from "@ant-design/icons";
-import { Panel as XYFlowPanel } from "@xyflow/react";
 import type { ComponentType } from "react";
 import { default as EditableText } from "@/components/editable-text/editable-text";
 import { useWorkflowState, node_name } from "../graph";
+import { default as InspectorCard } from "./inspector-card";
 
 /**
  * onValidate 返回类型。
@@ -27,7 +27,8 @@ export interface node_settings_props {
 export type node_setting_types = Record<string, ComponentType<node_settings_props> | undefined>;
 
 /**
- * 各节点 Settings 面板容器（Card 标题 + 校验 + 运行）。
+ * 各节点 Settings 面板卡片（复用 InspectorCard + 标题 + 校验 + 运行）。
+ * 由页面右侧检查器渲染，与事件日志卡片并排、二者复用同一张卡片（视觉完全一致）。
  */
 export function NodeSetting({
     nodeId,
@@ -70,58 +71,35 @@ export function NodeSetting({
     };
 
     return (
-        <XYFlowPanel
-            position="top-right"
-            style={{
-                margin: '16px',
-                width: '450px',
-                height: 'calc(100% - 32px)',
-                pointerEvents: 'auto',
-            }}
+        <InspectorCard
+            title={
+                <EditableText
+                    value={label}
+                    onChange={handle_label_change}
+                    placeholder="未命名节点"
+                />
+            }
+            extra={
+                <Flex gap={6} align="center">
+                    <Tooltip title="运行此节点">
+                        <Button type="text" icon={<PlayCircleOutlined />} size="small" onClick={handle_run} />
+                    </Tooltip>
+                    <Tooltip title="节点文档">
+                        <Button type="text" icon={<ApiOutlined />} size="small" />
+                    </Tooltip>
+                    <span style={{
+                        width: 1,
+                        height: 15,
+                        background: token.colorBorderSecondary,
+                        margin: '0 10px',
+                        display: 'inline-block',
+                        verticalAlign: 'middle',
+                    }} />
+                    <Button type="text" icon={<CloseOutlined />} onClick={onClose} size="small" />
+                </Flex>
+            }
         >
-            <Card
-                variant="borderless"
-                styles={{
-                    body: { padding: '20px', height: '100%', overflowY: 'auto' },
-                    header: { borderBottom: 'none', padding: '0 20px' },
-                }}
-                style={{
-                    height: '100%',
-                    borderRadius: '12px',
-                    boxShadow: `-4px 0 24px ${token.colorFillSecondary}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                }}
-                title={
-                    <EditableText
-                        value={label}
-                        onChange={handle_label_change}
-                        placeholder="未命名节点"
-                    />
-                }
-                extra={
-                    <Flex gap={6} align="center">
-                        <Tooltip title="运行此节点">
-                            <Button type="text" icon={<PlayCircleOutlined />} size="small" onClick={handle_run} />
-                        </Tooltip>
-                        <Tooltip title="节点文档">
-                            <Button type="text" icon={<ApiOutlined />} size="small" />
-                        </Tooltip>
-                        <span style={{
-                            width: 1,
-                            height: 15,
-                            background: token.colorBorderSecondary,
-                            margin: '0 10px',
-                            display: 'inline-block',
-                            verticalAlign: 'middle',
-                        }} />
-                        <Button type="text" icon={<CloseOutlined />} onClick={onClose} size="small" />
-                    </Flex>
-                }
-            >
-                {children}
-            </Card>
-        </XYFlowPanel>
+            {children}
+        </InspectorCard>
     );
 }

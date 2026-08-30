@@ -47,19 +47,19 @@
 [use-replay-state.ts](../../../src/components/workflow/replay/use-replay-state.ts)：
 
 - **live**：`run()` 提交 DSL → `POST /api/workflow/execute` 得 runId → `EventSource` 订阅 `GET /api/workflow/{runId}/stream`（原生重连 + `Last-Event-ID` 续传）→ 每事件 `dispatch(runtime/apply_event)` 驱动七态
-- **replay**：`load_replay()` 拉 `GET /api/workflow/{runId}/events` 历史 → 播放/步进/进度条按位置重放（reset 后按序重放 [0, position)）
+- **replay**：`load_replay(target_run_id?)` 拉 `GET /api/workflow/{runId}/events` 历史 → 播放/步进/进度条按位置重放（reset 后按序重放 [0, position)）；点击某次执行记录即回放那次运行
 
-服务客户端：[services/workflow.ts](../../../src/services/workflow.ts)（REST + SSE）。控制条与事件日志：[replay-controls.tsx](../../../src/components/workflow/replay/replay-controls.tsx)、[event-log.tsx](../../../src/components/workflow/replay/event-log.tsx)。
+服务客户端：[services/workflow.ts](../../../src/services/workflow.ts)（REST + SSE）。右侧检查器为两张卡：①节点配置（`node-setting.tsx`，复用 `components/inspector-card.tsx`，450px）；②事件日志卡片（`replay/event-log-panel.tsx`，宽约 600px）——一张卡内左右分栏：左边「执行记录」list（约 150px，`replay/run-history.tsx`），右边「事件日志」（450px，`replay/event-log.tsx`，每个条目展示完整 trace 事件并可展开查看输入/输出快照，`NODE_STARTED` 带 `input`、`NODE_SUCCEEDED` 带 `output`）。三者复用同一 `InspectorCard`；事件日志卡带 runId 标签与关闭按钮。节点配置由画布选中节点驱动、不再悬浮；事件日志卡仅在被执行过（存在 runs）时出现。执行历史由 `useReplayState` 在本会话内维护（`runs`，新→旧），点击某条经 `load_replay(run_id)` 切入该次执行的回放。控制条：[replay-controls.tsx](../../../src/components/workflow/replay/replay-controls.tsx)。
 
 ## 目录结构
 
 ```
 src/components/workflow/
-├── workflow.tsx                    受控画布主组件（ReactFlowProvider + 状态上下文）
+├── workflow.tsx                    受控画布主组件（ReactFlowProvider；状态上下文由页面提供）
 ├── components/workflow-canvas.tsx  画布主体（投影 + 派发 + useStore 读 nodeLookup）
 ├── graph/                          canonical 类型 / 纯函数 / 映射 / reducer / 上下文
 ├── nodes/                          create_registry / start / end / node-wrapper
-├── components/                     Node 外壳 / 设置面板容器 / 边 / Handle / 菜单 / 状态样式
+├── components/                     Node 外壳 / 设置面板容器 / InspectorCard / 边 / Handle / 菜单 / 状态样式
 ├── extends/node-field/             字段级引用 UI（CUSTOM / INTERNAL_REF / EXTERNAL_REF）
-└── replay/                         use-replay-state / 控制条 / 事件日志
+└── replay/                         use-replay-state / 控制条 / 事件日志 / 执行记录
 ```

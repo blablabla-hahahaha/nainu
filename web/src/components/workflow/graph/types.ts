@@ -95,6 +95,8 @@ export interface trace_event {
     detail?: string;
     duration?: number;
     output?: Record<string, unknown>;
+    /** 节点执行输入快照（解析后的 value）；仅 NODE_STARTED 携带。 */
+    input?: Record<string, unknown>;
     occurredAt?: number;
 }
 

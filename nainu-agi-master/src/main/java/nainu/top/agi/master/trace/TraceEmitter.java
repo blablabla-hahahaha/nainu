@@ -49,6 +49,7 @@ public class TraceEmitter {
         fields.put("detail", event.getDetail() == null ? "" : event.getDetail());
         fields.put("duration", event.getDuration() == null ? 0 : event.getDuration());
         fields.put("output", event.getOutput() == null ? "{}" : JsonUtils.toJson(event.getOutput()));
+        fields.put("input", event.getInput() == null ? "{}" : JsonUtils.toJson(event.getInput()));
         fields.put("occurredAt", event.getOccurredAt());
         StreamMessageId id = stream.add(StreamAddArgs.entries(fields));
         String seq = id.toString();
@@ -103,6 +104,7 @@ public class TraceEmitter {
         message.put("detail", event.getDetail());
         message.put("duration", event.getDuration());
         message.put("output", event.getOutput());
+        message.put("input", event.getInput());
         message.put("occurredAt", event.getOccurredAt());
         return message;
     }
@@ -120,6 +122,7 @@ public class TraceEmitter {
                 .detail(nullableStr(fields.get("detail")))
                 .duration(fields.get("duration") instanceof Number n ? n.longValue() : null)
                 .output(parseOutput(str(fields.get("output"))))
+                .input(parseOutput(str(fields.get("input"))))
                 .occurredAt(fields.get("occurredAt") instanceof Number n ? n.longValue() : 0L)
                 .build();
     }

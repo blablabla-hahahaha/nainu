@@ -10,7 +10,7 @@ import styles from './status.module.css';
  * 外壳背景/阴影恒为默认样式；边框颜色随运行状态（有状态时）着色，尺寸不变；
  * 运行状态以标题行右侧、与名称水平对齐的状态图标展示。
  * 待执行（wait）与未启动（default）同视为中性，不显示状态图标/边框；
- * 已成功节点在下方展示可展开的运行结果卡片。
+ * 成功与失败节点均在下方展示可展开的结果卡片（失败节点含异常描述区）。
  */
 export default function Node(props: node_props) {
     const { by_type, token } = useNodeStyles();
@@ -62,13 +62,14 @@ export default function Node(props: node_props) {
                         {children}
                     </div>
                 )}
-                {runtime?.output !== undefined && (
+                {(runtime?.output !== undefined || runtime?.type === 'failed') && (
                     <NodeResult
                         nodeId={props.id}
-                        output={runtime.output}
+                        output={runtime.output ?? {}}
                         input={data?.input}
                         duration={duration}
                         nodeLabel={node_label}
+                        error={runtime?.type === 'failed' ? { message: runtime.message, detail: runtime.detail } : undefined}
                     />
                 )}
             </div>

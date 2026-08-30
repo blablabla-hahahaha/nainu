@@ -66,9 +66,9 @@ function validate_output_settings(values: output_node_form_values): null | strin
         if (!f.value?.trim()) return `输入字段「${f.alias || '?'}」的来源不能为空`;
     }
 
-    if (values.jsonTemplate.trim() === '') return 'JSON 模板不能为空';
+    if (values.jsonTemplate.trim() === '') return '「输出内容」不能为空';
     if (!output_field_support.isValidTemplate(values.jsonTemplate)) {
-        return 'JSON 模板必须是一个合法的 JSON 对象（非数组、非原始值）';
+        return '「输出内容」必须是一个合法的 JSON 对象（顶层不能是数组或单个值）';
     }
 
     const template_keys = output_field_support.getTemplateKeys(values.jsonTemplate);

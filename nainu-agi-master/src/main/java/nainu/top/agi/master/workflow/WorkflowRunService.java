@@ -7,6 +7,7 @@ import com.alibaba.cloud.ai.graph.action.InterruptionMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nainu.top.agi.common.dsl.GraphDefinition;
+import nainu.top.agi.common.exception.WorkflowException;
 import nainu.top.agi.common.trace.TraceEvent;
 import nainu.top.agi.common.trace.TraceEventType;
 import nainu.top.agi.master.compile.StateGraphCompiler;
@@ -158,6 +159,10 @@ public class WorkflowRunService {
                                     .runId(session.getRunId())
                                     .type(TraceEventType.EXECUTION_FAILED)
                                     .message(error.getMessage())
+                                    .errorCategory(WorkflowException.resolveCategory(error).name())
+                                    .errorCode(WorkflowException.resolveErrorCode(error))
+                                    .retryable(WorkflowException.resolveRetryable(error))
+                                    .detail(WorkflowException.resolveDetail(error))
                                     .occurredAt(System.currentTimeMillis())
                                     .build());
                             finish(session, "FAILED");

@@ -18,6 +18,11 @@ export interface node_result_props {
     duration?: number;
     /** 节点显示名（用于结果卡片标题）。 */
     nodeLabel?: string;
+    /** 失败信息；存在时结果卡片显示「异常描述」（用户可读 message）与「技术详情」（detail）区。 */
+    error?: {
+        message?: string;
+        detail?: string;
+    };
 }
 
 const CONTENT_LANGUAGE = 'json' as const;
@@ -33,16 +38,19 @@ const RESULT_EDITOR_FONT_SIZE = 12;
  * 点击阻止冒泡，避免触发节点拖拽/选中；根节点挂载 React Flow 的 nodrag 类，
  * 使其不参与节点拖拽（以便框选复制其中文本），展开/收起时把本节点运行结果置顶到其它节点之上。
  */
-export default function NodeResult({ nodeId, output, input, duration, nodeLabel }: node_result_props) {
+export default function NodeResult({ nodeId, output, input, duration, nodeLabel, error }: node_result_props) {
     const [is_expanded, set_is_expanded] = useState(false);
     const { activate_node } = useRunResultContext();
 
+    const has_error = !!error?.message;
     const output_text = JSON.stringify(output, null, 2);
     const has_input = Array.isArray(input)
         ? input.length > 0
         : (input !== null && input !== undefined && Object.keys(input as object).length > 0);
     const input_text = has_input ? JSON.stringify(input, null, 2) : '{}';
-    const title = nodeLabel ? `${nodeLabel} 运行结果` : '运行结果';
+    const title = nodeLabel
+        ? (has_error ? `${nodeLabel} 运行失败` : `${nodeLabel} 运行结果`)
+        : (has_error ? '运行失败' : '运行结果');
     const duration_text = duration !== undefined ? `${duration} ms` : '-';
 
     const copy_text = (text: string) => {
@@ -79,6 +87,15 @@ export default function NodeResult({ nodeId, output, input, duration, nodeLabel 
                             onClick={() => set_is_expanded(false)}
                         />
                     </div>
+
+                    {has_error && (
+                        <div className={styles['node-result-error']}>
+                            <div className={styles['node-result-error-message']}>{error?.message}</div>
+                            {error?.detail && (
+                                <div className={styles['node-result-error-detail']}>异常详情：{error.detail}</div>
+                            )}
+                        </div>
+                    )}
 
                     <div className={styles['node-result-section-head']}>
                         <span className={styles['node-result-section-title']}>输入</span>

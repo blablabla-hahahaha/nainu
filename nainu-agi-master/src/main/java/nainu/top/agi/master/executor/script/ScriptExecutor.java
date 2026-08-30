@@ -1,6 +1,9 @@
 package nainu.top.agi.master.executor.script;
 
 import nainu.top.agi.common.dsl.NodeDefinition;
+import nainu.top.agi.common.exception.ErrorCategory;
+import nainu.top.agi.common.exception.ErrorCodes;
+import nainu.top.agi.common.exception.WorkflowException;
 import nainu.top.agi.common.util.JsonUtils;
 import nainu.top.agi.master.executor.NodeExecuteRequest;
 import nainu.top.agi.master.executor.NodeExecutor;
@@ -40,15 +43,17 @@ public class ScriptExecutor implements NodeExecutor {
     public Map<String, Object> execute(NodeExecuteRequest request) {
         Map<String, Object> config = request.getConfig();
         if (config == null) {
-            throw new IllegalArgumentException("脚本节点缺少 config（language/script）");
+            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EMPTY,
+                    "脚本节点缺少 config（language/script）");
         }
         String language = String.valueOf(config.getOrDefault("language", "javascript"));
         String script = String.valueOf(config.get("script"));
         if (script == null || script.isEmpty()) {
-            throw new IllegalArgumentException("脚本内容为空");
+            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EMPTY, "脚本内容为空");
         }
         if (!"javascript".equalsIgnoreCase(language)) {
-            throw new IllegalArgumentException("暂不支持脚本语言: " + language + "（当前仅 javascript）");
+            throw new WorkflowException(ErrorCategory.PLATFORM, ErrorCodes.SCRIPT_UNSUPPORTED_LANGUAGE,
+                    "暂不支持脚本语言: " + language + "（当前仅 javascript）");
         }
 
         String paramsJson = JsonUtils.toJson(request.getResolvedInputs() == null ? Map.of() : request.getResolvedInputs());
@@ -70,7 +75,9 @@ public class ScriptExecutor implements NodeExecutor {
             Value result = main.execute();
             return toResultMap(result);
         } catch (RuntimeException e) {
-            throw new IllegalArgumentException("脚本执行失败: " + e.getMessage(), e);
+            // 脚本语法/运行时/类型错误：用户的脚本问题，大声失败。
+            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EXECUTION_FAILED,
+                    "脚本执行失败: " + e.getMessage(), false, e);
         }
     }
 

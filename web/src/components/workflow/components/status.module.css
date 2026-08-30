@@ -125,6 +125,32 @@
     overflow: hidden;
 }
 
+.node-result-error {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: #fff1f0;
+    border: 1px solid #ffccc7;
+    color: #cf1322;
+}
+
+.node-result-error-message {
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.node-result-error-detail {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #ffccc7;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
 .node-result-stats {
     display: flex;
     flex-wrap: wrap;

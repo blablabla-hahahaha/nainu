@@ -1,6 +1,7 @@
 package nainu.top.agi.common.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import nainu.top.agi.common.exception.JsonException;
 import org.springframework.util.StringUtils;
@@ -8,9 +9,16 @@ import org.springframework.util.StringUtils;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 
+/**
+ * JSON 工具：统一 ObjectMapper，序列化/反序列化共用。
+ *
+ * <p>反序列化开启 {@code FAIL_ON_TRAILING_TOKENS}：值后面的多余字符（如 `{}身份`）视为非法并抛
+ * {@link JsonException}（大声失败），与前端严格 {@code JSON.parse} 一致，避免「看起来该报错却静默成功」。
+ */
 public class JsonUtils {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, true);
 
     public static String toJson(Object value) {
         return tryJson(() -> objectMapper.writeValueAsString(value), "Failed to serialize to JSON");

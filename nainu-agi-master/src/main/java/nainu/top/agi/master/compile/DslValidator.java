@@ -7,6 +7,9 @@ import nainu.top.agi.common.dsl.GraphDefinition;
 import nainu.top.agi.common.dsl.NodeDefinition;
 import nainu.top.agi.common.dsl.NodeInputFieldDefinition;
 import nainu.top.agi.common.dsl.NodeOutputFieldDefinition;
+import nainu.top.agi.common.exception.ErrorCategory;
+import nainu.top.agi.common.exception.ErrorCodes;
+import nainu.top.agi.common.exception.WorkflowException;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -24,7 +27,7 @@ import java.util.stream.Collectors;
  * DSL 图级校验器（Java 侧）：与 scripts/dsl-graph-rules.ts 共享同一规则清单与用例集。
  *
  * <p>JSON Schema 管结构，本类管图级规则（START 唯一、DAG、引用可解析、条件边合法性）。
- * 校验失败抛 {@link IllegalArgumentException}（大声失败）。
+ * 校验失败抛 {@link WorkflowException}（{@link ErrorCategory#AUTHORING}，大声失败）。
  */
 public final class DslValidator {
 
@@ -182,7 +185,8 @@ public final class DslValidator {
         }
 
         if (!errors.isEmpty()) {
-            throw new IllegalArgumentException("DSL 校验失败：" + String.join("；", errors));
+            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.DSL_INVALID,
+                    "DSL 校验失败：" + String.join("；", errors));
         }
     }
 

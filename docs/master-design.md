@@ -48,7 +48,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 | 实现 | 位置 | 职责 |
 |------|------|------|
-| `DslValidator`（Java） | `compile/` | 编译前校验，失败抛 `IllegalArgumentException`（大声失败） |
+| `DslValidator`（Java） | `compile/` | 编译前校验，失败抛 `WorkflowException`（`AUTHORING`，大声失败） |
 | `scripts/dsl-graph-rules.ts`（Node） | 仓库脚本 | `verify-dsl-contract` 门禁 + 前端预检参考 |
 
 共享同一规则清单与用例集（`scripts/spec/dsl-contract.spec.ts` + `DslValidatorTest`）。
@@ -61,7 +61,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 4.2 NodeActionAdapter
 
-统一壳（`compile/`）：trace `node_started` → 输入解析（INTERNAL_REF 读状态）→ delegate 执行器 → trace `node_succeeded/failed`（含输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。
+统一壳（`compile/`）：trace `node_started` → 输入解析（INTERNAL_REF 读状态）→ delegate 执行器 → trace `node_succeeded/failed`（含输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。`node_failed` 事件把抛出异常的 `errorCategory / errorCode / retryable` 三件套盖到事件上；非 `WorkflowException` 异常默认按 `PLATFORM` 归类（未知异常不甩锅给用户）。
 
 ### 4.3 状态 key 约定（workflow/StateKeys）
 
@@ -71,19 +71,23 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 5.1 九事件
 
-`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。SSE 线格式为默认 message 事件（帧仅 `id` + `data`，类型在 `data.type` 内），`EventSource.onmessage` 即收——服务端不发送命名 `event:` 帧，避免与浏览器默认事件语义不一致。
+`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。SSE 线格式为默认 message 事件（帧仅 `id` + `data`，类型在 `data.type` 内），`EventSource.onmessage` 即收——服务端不发送命名 `event:` 帧，避免与浏览器默认事件语义不一致。失败事件（`NODE_FAILED` / `EXECUTION_FAILED`）附带可选 `errorCategory / errorCode / retryable`，供前端按类别路由呈现；旧事件缺省该字段仍可回放。
 
-### 5.2 执行会话
+### 5.2 执行错误类别
+
+执行错误按「用户改 DSL 能否修好」划分责任归属（`common/exception`）：`AUTHORING`（用户配置/脚本/格式错误，前端可行动地透出）、`PLATFORM`（平台自身失败，只给友好文案；errorCode/runId 仅作支撑标识，不直接展示给用户）、`EXTERNAL`（上游依赖失败，可重试）。分类判据与默认值见 `WorkflowException`。执行器在抛异常时声明三件套，前端用于着色与重试逻辑，不回显内部枚举标签。失败事件另携带 `detail`（最内层 cause 的关键 message，去除类名与 `at [Source...]` 位置噪音并收敛长度，无底层原因则为空），作为用户可读文案之外的补充信息，供深挖与 AI 上下文使用。
+
+### 5.3 执行会话
 
 `WorkflowRunService` + `RunSessionRegistry`（进程内 Map<runId, session>）。`threadId = runId`；暂停 = 取消流订阅（graph-core 取消语义，**at-least-once**：被中断节点 resume 后重跑，节点执行器须幂等）；恢复 = 同 threadId 再 invoke（RedisSaver 从最后检查点续跑）；HITL 恢复先 `updateState(config, input, interruptedNode)`。
 
-### 5.3 Redis
+### 5.4 Redis
 
 Redisson 统一客户端（Lettuce 已退役）。RedisSaver 检查点 + `trace:*` 事件流共用；Caffeine 仅编译缓存。
 
 ## 6. 脚本节点（SCRIPT）
 
-`ScriptExecutor`（`executor/script/`）：GraalVM 嵌入执行 JS（Python 延后）。契约：注入 `params`（JSON 注入为纯 JS 对象）；脚本必须定义 `main()`；返回对象按 output 映射写回。沙箱：`HostAccess.NONE` + `allowIO(false)` + `ResourceLimits.statementLimit`（防死循环主守卫，`onLimit` 日志）；timeLimit / maxHeapMemory 待 GraalVM 升级后补齐（阶段四治理）。失败（语法/运行/超限）→ node_failed。
+`ScriptExecutor`（`executor/script/`）：GraalVM 嵌入执行 JS（Python 延后）。契约：注入 `params`（JSON 注入为纯 JS 对象）；脚本必须定义 `main()`；返回对象按 output 映射写回。沙箱：`HostAccess.NONE` + `allowIO(false)` + `ResourceLimits.statementLimit`（防死循环主守卫，`onLimit` 日志）；timeLimit / maxHeapMemory 待 GraalVM 升级后补齐（阶段四治理）。失败分类：脚本语法/运行时/类型错误 → `AUTHORING`；不支持的语言/资源上限 → `PLATFORM`；均经 `node_failed` 透出。
 
 ## 7. API
 

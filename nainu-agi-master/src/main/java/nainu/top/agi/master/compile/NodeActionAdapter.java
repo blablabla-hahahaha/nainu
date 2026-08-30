@@ -6,6 +6,7 @@ import com.alibaba.cloud.ai.graph.action.AsyncNodeActionWithConfig;
 import nainu.top.agi.common.dsl.NodeDefinition;
 import nainu.top.agi.common.dsl.NodeInputFieldDefinition;
 import nainu.top.agi.common.dsl.NodeOutputFieldDefinition;
+import nainu.top.agi.common.exception.WorkflowException;
 import nainu.top.agi.common.trace.TraceEvent;
 import nainu.top.agi.common.trace.TraceEventType;
 import nainu.top.agi.master.executor.NodeExecuteRequest;
@@ -65,6 +66,10 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
                     .type(TraceEventType.NODE_FAILED)
                     .nodeId(definition.getId())
                     .message(e.getMessage())
+                    .errorCategory(WorkflowException.resolveCategory(e).name())
+                    .errorCode(WorkflowException.resolveErrorCode(e))
+                    .retryable(WorkflowException.resolveRetryable(e))
+                    .detail(WorkflowException.resolveDetail(e))
                     .occurredAt(System.currentTimeMillis())
                     .build());
             return CompletableFuture.failedFuture(e);

@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import nainu.top.agi.common.dsl.EdgeDefinition;
 import nainu.top.agi.common.dsl.GraphDefinition;
 import nainu.top.agi.common.dsl.NodeDefinition;
+import nainu.top.agi.common.exception.ErrorCategory;
+import nainu.top.agi.common.exception.ErrorCodes;
+import nainu.top.agi.common.exception.WorkflowException;
 import nainu.top.agi.master.executor.NodeExecutor;
 import nainu.top.agi.master.executor.NodeExecutorRegistry;
 import nainu.top.agi.master.executor.condition.ConditionEvaluator;
@@ -118,7 +121,8 @@ public class StateGraphCompiler {
                         return edge.getId();
                     }
                 }
-                throw new IllegalStateException("条件分支无命中且无 ELSE（节点 " + source + "）");
+                throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.CONDITION_NO_MATCH,
+                        "条件分支无命中且无 ELSE（节点 " + source + "）");
             }), mappings);
         }
 

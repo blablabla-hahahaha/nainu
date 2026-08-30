@@ -19,6 +19,21 @@ const EVENT_COLORS: Record<trace_event_type, string> = {
     NODE_SUSPENDED: 'purple',
 };
 
+/** 错误类别 → 事件日志标签色（仅失败事件携带 category；缺省回退到类型色）。 */
+const CATEGORY_COLORS: Record<string, string> = {
+    AUTHORING: 'red',
+    PLATFORM: 'purple',
+    EXTERNAL: 'orange',
+};
+
+/** 取事件标签色：优先按错误类别着色，缺省按事件类型。 */
+function event_color(e: trace_event): string {
+    if (e.errorCategory && e.errorCategory in CATEGORY_COLORS) {
+        return CATEGORY_COLORS[e.errorCategory];
+    }
+    return EVENT_COLORS[e.type];
+}
+
 /**
  * 事件日志侧栏（live 实时追加；replay 随位置高亮）。
  * memo：拖拽等高频 view 变更令页面重渲染，但 events 引用在拖拽期间稳定（useReplayState useMemo），
@@ -47,7 +62,7 @@ export default memo(function EventLog({ events }: event_log_props) {
                     <List.Item style={{ padding: '4px 8px' }}>
                         <Flex vertical gap={2} style={{ width: '100%' }}>
                             <Flex justify="space-between" align="center">
-                                <Tag color={EVENT_COLORS[e.type]} style={{ marginInlineEnd: 0 }}>
+                                <Tag color={event_color(e)} style={{ marginInlineEnd: 0 }}>
                                     {e.type}
                                 </Tag>
                                 <Typography.Text type="secondary" style={{ fontSize: 11 }}>
@@ -57,6 +72,11 @@ export default memo(function EventLog({ events }: event_log_props) {
                             {e.message && (
                                 <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                                     {e.message}
+                                </Typography.Text>
+                            )}
+                            {e.detail && (
+                                <Typography.Text type="secondary" style={{ fontSize: 10, fontFamily: 'monospace' }}>
+                                    异常详情：{e.detail}
                                 </Typography.Text>
                             )}
                         </Flex>

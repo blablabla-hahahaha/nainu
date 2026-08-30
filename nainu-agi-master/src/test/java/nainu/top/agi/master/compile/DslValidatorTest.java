@@ -7,11 +7,15 @@ import nainu.top.agi.common.dsl.GraphDefinition;
 import nainu.top.agi.common.dsl.NodeDefinition;
 import nainu.top.agi.common.dsl.NodeInputFieldDefinition;
 import nainu.top.agi.common.dsl.NodeOutputFieldDefinition;
+import nainu.top.agi.common.exception.ErrorCategory;
+import nainu.top.agi.common.exception.ErrorCodes;
+import nainu.top.agi.common.exception.WorkflowException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -29,7 +33,9 @@ class DslValidatorTest {
     void rejectsMissingStart() {
         GraphDefinition g = validGraph();
         g.setNodes(g.getNodes().stream().filter(n -> !"start".equals(n.getId())).toList());
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        WorkflowException ex = assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
+        assertEquals(ErrorCategory.AUTHORING, ex.getCategory());
+        assertEquals(ErrorCodes.DSL_INVALID, ex.getErrorCode());
     }
 
     @Test
@@ -40,14 +46,14 @@ class DslValidatorTest {
                 edge("e2", "debug", "cond"),
                 edge("e3", "cond", "debug"),
                 condEdge("e4", "cond", "end", "else", "ELSE", null, null)));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     @Test
     void rejectsDanglingRefNode() {
         GraphDefinition g = validGraph();
         g.getNodes().get(1).setInput(List.of(ref("ghost", "k")));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     @Test
@@ -57,7 +63,7 @@ class DslValidatorTest {
         isolated.setOutput(List.of(output("k", "k")));
         g.getNodes().get(2).setInput(List.of(ref("iso", "k")));
         g.setNodes(List.of(g.getNodes().get(0), g.getNodes().get(1), g.getNodes().get(2), isolated, g.getNodes().get(4)));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     @Test
@@ -68,7 +74,7 @@ class DslValidatorTest {
                 edge("e2", "debug", "cond"),
                 condEdge("e3", "cond", "ok", "else", "ELSE", null, null),
                 condEdge("e4", "cond", "end", "if", "IF", "AND", compare(ref("debug", "ka"), "EQUALS", "x"))));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     @Test
@@ -78,7 +84,7 @@ class DslValidatorTest {
                 edge("e1", "start", "debug"),
                 edge("e2", "debug", "cond"),
                 edge("e3", "cond", "ok")));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     @Test
@@ -90,7 +96,7 @@ class DslValidatorTest {
                 condEdge("e3", "cond", "ok", "if", "IF", "AND",
                         compare(ref("ghost", "ka"), "EQUALS", "x")),
                 condEdge("e4", "cond", "end", "else", "ELSE", null, null)));
-        assertThrows(IllegalArgumentException.class, () -> DslValidator.validate(g));
+        assertThrows(WorkflowException.class, () -> DslValidator.validate(g));
     }
 
     // ---------- builders ----------

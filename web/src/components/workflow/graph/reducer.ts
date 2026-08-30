@@ -193,7 +193,14 @@ function apply_runtime_event(state: workflow_state, event: trace_event): workflo
             return {
                 ...state.runtime,
                 execution,
-                nodes: patch_node(state, event, { type: 'failed', message: event.message }),
+                nodes: patch_node(state, event, {
+                    type: 'failed',
+                    message: event.message,
+                    errorCategory: event.errorCategory,
+                    errorCode: event.errorCode,
+                    retryable: event.retryable,
+                    detail: event.detail,
+                }),
             };
         case 'NODE_SUSPENDED':
             return {

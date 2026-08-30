@@ -38,6 +38,14 @@ export type execution_status =
 export interface node_runtime_status {
     type: node_status_type;
     message?: string;
+    /** 错误类别（后端 ErrorCategory#name()）；仅失败节点携带。 */
+    errorCategory?: string;
+    /** 稳定错误码；仅失败节点携带。 */
+    errorCode?: string;
+    /** 是否可重试；仅失败节点携带。 */
+    retryable?: boolean;
+    /** 技术侧错误详情（底层 cause 链简单类名: 消息）；仅失败节点且存在底层原因时携带。 */
+    detail?: string;
     duration?: number;
     output?: Record<string, unknown>;
 }
@@ -77,6 +85,14 @@ export interface trace_event {
     type: trace_event_type;
     nodeId?: string;
     message?: string;
+    /** 错误类别（后端 ErrorCategory#name()）；仅失败事件携带。 */
+    errorCategory?: string;
+    /** 稳定错误码；仅失败事件携带。 */
+    errorCode?: string;
+    /** 是否可重试；仅失败事件携带。 */
+    retryable?: boolean;
+    /** 技术侧错误详情（底层 cause 链简单类名: 消息）；仅失败事件且存在底层原因时携带。 */
+    detail?: string;
     duration?: number;
     output?: Record<string, unknown>;
     occurredAt?: number;

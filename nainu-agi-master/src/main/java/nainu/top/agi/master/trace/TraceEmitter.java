@@ -43,6 +43,10 @@ public class TraceEmitter {
         fields.put("type", event.getType().name());
         fields.put("nodeId", event.getNodeId() == null ? "" : event.getNodeId());
         fields.put("message", event.getMessage() == null ? "" : event.getMessage());
+        fields.put("errorCategory", event.getErrorCategory() == null ? "" : event.getErrorCategory());
+        fields.put("errorCode", event.getErrorCode() == null ? "" : event.getErrorCode());
+        fields.put("retryable", event.getRetryable() == null ? false : event.getRetryable());
+        fields.put("detail", event.getDetail() == null ? "" : event.getDetail());
         fields.put("duration", event.getDuration() == null ? 0 : event.getDuration());
         fields.put("output", event.getOutput() == null ? "{}" : JsonUtils.toJson(event.getOutput()));
         fields.put("occurredAt", event.getOccurredAt());
@@ -93,6 +97,10 @@ public class TraceEmitter {
         message.put("type", event.getType().name());
         message.put("nodeId", event.getNodeId());
         message.put("message", event.getMessage());
+        message.put("errorCategory", event.getErrorCategory());
+        message.put("errorCode", event.getErrorCode());
+        message.put("retryable", event.getRetryable());
+        message.put("detail", event.getDetail());
         message.put("duration", event.getDuration());
         message.put("output", event.getOutput());
         message.put("occurredAt", event.getOccurredAt());
@@ -106,6 +114,10 @@ public class TraceEmitter {
                 .type(safeType(str(fields.get("type"))))
                 .nodeId(str(fields.get("nodeId")))
                 .message(str(fields.get("message")))
+                .errorCategory(nullableStr(fields.get("errorCategory")))
+                .errorCode(nullableStr(fields.get("errorCode")))
+                .retryable(fields.get("retryable") instanceof Boolean b ? b : null)
+                .detail(nullableStr(fields.get("detail")))
                 .duration(fields.get("duration") instanceof Number n ? n.longValue() : null)
                 .output(parseOutput(str(fields.get("output"))))
                 .occurredAt(fields.get("occurredAt") instanceof Number n ? n.longValue() : 0L)
@@ -134,6 +146,11 @@ public class TraceEmitter {
 
     private static String str(Object o) {
         return o == null ? "" : String.valueOf(o);
+    }
+
+    private static String nullableStr(Object o) {
+        String s = str(o);
+        return s.isEmpty() ? null : s;
     }
 
     private static StreamMessageId seqId(String seq) {

@@ -5,6 +5,7 @@
 import { Button, Card, Flex, Form, Select } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { NodeFieldItem } from '@/components/workflow/extends/node-field/node-field-item';
+import type { internal_ref_option } from '@/components/workflow/extends/node-field/node-field';
 import {
     type compare_type,
     compare_operator_definition_support,
@@ -18,13 +19,14 @@ export interface compare_operator_form_props {
     paths: (string | number)[];
     removable?: boolean;
     onRemove?: () => void;
+    internal_ref_options?: internal_ref_option[];
 }
 
 /**
  * 渲染一行 compare 条件：字段选择 + 运算符选择 + 可选的对比值。
  */
 export function CompareOperatorForm(props: compare_operator_form_props) {
-    const { name, paths, removable, onRemove } = props;
+    const { name, paths, removable, onRemove, internal_ref_options } = props;
     const selected_compare_type = Form.useWatch([...paths, 'type']) as compare_type;
 
     return (
@@ -41,6 +43,7 @@ export function CompareOperatorForm(props: compare_operator_form_props) {
                             style={{ flex: 1, marginBottom: 0 }}
                             help=""
                             disableAlias
+                            internal_ref_options={internal_ref_options}
                         />
                         <Form.Item
                             name={[name, 'type']}
@@ -58,6 +61,7 @@ export function CompareOperatorForm(props: compare_operator_form_props) {
                                 style={{ flex: 1, marginBottom: 0 }}
                                 help=""
                                 disableAlias
+                                internal_ref_options={internal_ref_options}
                             />
                         </div>
                     )}

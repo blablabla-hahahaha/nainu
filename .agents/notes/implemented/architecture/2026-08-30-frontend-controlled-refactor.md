@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-[workflow.tsx](../../../../web/src/components/workflow/workflow.tsx) 是受控组件：页面用 `useReducer` 持有三切片（canonical `graph` / `view` / `runtime`），画布只做 ReactFlow 投影（[react-flow-mapping.ts](../../../../web/src/components/workflow/graph/react-flow-mapping.ts) 的 `from_canonical` / `to_canonical`）与变更派发（[reducer.ts](../../../../web/src/components/workflow/graph/reducer.ts)）；设置面板经 `useWorkflowState()` 上下文读写，不再直连 React Flow store。节点目录 `entry.type` 统一为 DSL 类型（`START/END/CONDITION/DEBUG/SCRIPT`，与后端 `NodeType` 对齐）；节点数据拆分 canonical `config/input/output`，布局持久化到 `meta.view`（`with_view` / `get_view`）。回放层（[replay/](../../../../web/src/components/workflow/replay/)）：`services/workflow.ts` 提供 REST（execute/events/pause/resume）+ 原生 `EventSource` SSE（自动重连 + `Last-Event-ID` 续传），九事件经 `runtime/apply_event` 驱动七态；live（实时跟随）与 replay（历史播放/步进/进度）双模式共用同一 reducer。`graph/types.ts` 由 `workflow-dsl.schema.json` 生成（`web/src/generated/workflow-dsl.ts` 别名）；round-trip 幂等校验（[verify-roundtrip.ts](../../../../web/scripts/verify-roundtrip.ts)）接入 `verify-dsl-contract` 门禁。
+[workflow.tsx](../../../../web/src/components/workflow/workflow.tsx) 是受控组件：页面用 `useReducer` 持有三切片（canonical `graph` / `view` / `runtime`），画布只做 ReactFlow 投影（[react-flow-mapping.ts](../../../../web/src/components/workflow/graph/react-flow-mapping.ts) 的 `project_stable`（引用稳定投影，供渲染）与 `from_canonical` / `to_canonical`（round-trip））与变更派发（[reducer.ts](../../../../web/src/components/workflow/graph/reducer.ts)）；设置面板经 `useWorkflowState()` 上下文读写，不再直连 React Flow store。节点目录 `entry.type` 统一为 DSL 类型（`START/END/CONDITION/DEBUG/SCRIPT`，与后端 `NodeType` 对齐）；节点数据拆分 canonical `config/input/output`，布局持久化到 `meta.view`（`with_view` / `get_view`）。回放层（[replay/](../../../../web/src/components/workflow/replay/)）：`services/workflow.ts` 提供 REST（execute/events/pause/resume）+ 原生 `EventSource` SSE（自动重连 + `Last-Event-ID` 续传），九事件经 `runtime/apply_event` 驱动七态；live（实时跟随）与 replay（历史播放/步进/进度）双模式共用同一 reducer。`graph/types.ts` 由 `workflow-dsl.schema.json` 生成（`web/src/generated/workflow-dsl.ts` 别名）；round-trip 幂等校验（[verify-roundtrip.ts](../../../../web/scripts/verify-roundtrip.ts)）接入 `verify-dsl-contract` 门禁。
 
 ## Alternatives considered
 
@@ -17,7 +17,7 @@ Status: implemented
 
 ## Consequences
 
-- 受控化后 React Flow 内部 store 仅作视图缓存，图状态单一事实源在页面 reducer；拖拽位置经 `view/move_node` 回流。
+- 受控化后 React Flow 内部 store 仅作视图缓存，图状态单一事实源在页面 reducer；拖拽位置经 `view/move_node` 回流。画布投影（`WorkflowCanvas`）用引用稳定的 `project_stable` 并续持节点 `measured`，避免拖拽闪烁与全画布重渲染。
 - runtime 切片不落库，保存 DSL 天然不含运行态；回放重放（reset 后按序重放）为 O(n²)，适合演示规模图。
 - EventSource 断线自动重连、浏览器按事件 id 续传 `Last-Event-ID`，与后端 SSE（id=seq）契约一致；终态由 `EXECUTION_COMPLETED/FAILED` 事件关闭连接。
 - 暂停为后端 graph-core 取消语义（at-least-once），前端事件流在恢复后继续，被中断节点的视觉状态由后续事件覆盖。

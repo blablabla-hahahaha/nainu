@@ -11,6 +11,7 @@ import {
     branch_operator_definition_support,
 } from './condition-operator';
 import { CompareOperatorForm } from './compare-operator-form';
+import type { internal_ref_option } from '@/components/workflow/extends/node-field/node-field';
 
 /**
  * BranchOperatorForm 的 props。
@@ -19,12 +20,13 @@ export interface branch_operator_form_props {
     name: number;
     branch: branch_type;
     onRemove?: () => void;
+    internal_ref_options?: internal_ref_option[];
 }
 
 /**
  * 渲染一条分支的表单：分支标签 + 逻辑切换按钮 + 多条 compare 条件 + 增删按钮。
  */
-export function BranchOperatorForm({ name, branch, onRemove }: branch_operator_form_props) {
+export function BranchOperatorForm({ name, branch, onRemove, internal_ref_options }: branch_operator_form_props) {
     const form = Form.useFormInstance();
     const compares_path = ['branches', name, 'compares'] as (string | number)[];
 
@@ -59,6 +61,7 @@ export function BranchOperatorForm({ name, branch, onRemove }: branch_operator_f
                                                 paths={compares_path}
                                                 removable={compares.length > 1}
                                                 onRemove={() => remove(compare_index)}
+                                                internal_ref_options={internal_ref_options}
                                             />
                                         </div>
                                     ))}

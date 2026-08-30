@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Node } from '@xyflow/react';
 
 /**
@@ -99,6 +99,9 @@ export function useSnapGuide(
     set_horizontal_guide_lines: (value: guide_line_payload) => void,
     set_vertical_guide_lines: (value: guide_line_payload) => void,
 ) {
+    const nodes_ref = useRef(nodes);
+    nodes_ref.current = nodes;
+
     const apply_snap_to_change = useCallback(<T extends { id: string; type: string; position?: { x: number; y: number }; dragging?: boolean }>(
         change: T,
     ): T => {
@@ -106,7 +109,7 @@ export function useSnapGuide(
             return change;
         }
 
-        const result = compute_snap_change(change.id, nodes, { x: change.position.x, y: change.position.y });
+        const result = compute_snap_change(change.id, nodes_ref.current, { x: change.position.x, y: change.position.y });
 
         if (result.guide.horizontal) {
             set_horizontal_guide_lines(result.guide.horizontal);
@@ -124,7 +127,7 @@ export function useSnapGuide(
             ...change,
             position: { x: result.x, y: result.y },
         };
-    }, [nodes, set_horizontal_guide_lines, set_vertical_guide_lines]);
+    }, [set_horizontal_guide_lines, set_vertical_guide_lines]);
 
     const reset_guide_lines = useCallback(() => {
         set_horizontal_guide_lines({});

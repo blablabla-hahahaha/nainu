@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Button, Flex, Form } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { NodeFieldItem } from "./node-field-item";
-import { short_uuid } from '@/utils/id-gen';
 import { with_id, ensure_ids } from "./node-field";
 import type { node_output_field_definition } from "./node-field";
 
@@ -42,6 +41,9 @@ export function NodeOutputFields({ name }: node_output_fields_props) {
                                 disableType
                                 help=""
                                 reverse={true}
+                                syncAliasToValue
+                                valuePlaceholder="JSON key"
+                                aliasPlaceholder="下游引用名"
                             />
                             <Button
                                 type="text"
@@ -56,7 +58,7 @@ export function NodeOutputFields({ name }: node_output_fields_props) {
                         block
                         icon={<PlusOutlined />}
                         style={{ marginTop: 6 }}
-                        onClick={() => add(with_id<node_output_field_definition>({ alias: short_uuid(), value: '' }))}
+                        onClick={() => add(with_id<node_output_field_definition>({ alias: '', value: '' }))}
                     >
                         添加输出字段
                     </Button>

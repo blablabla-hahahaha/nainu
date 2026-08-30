@@ -17,6 +17,14 @@ import { EMPTY_RUNTIME } from './types.ts';
 import { with_view } from './canonical.ts';
 import { uuid } from '@/utils/id-gen';
 
+/**
+ * 递增图版本：后端 StateGraphCompiler 按 (workflowId, version) 缓存编译结果，
+ * 编辑器 DSL 变更必须递增 version 使缓存失效，否则每次运行都复用首次编译的旧图。
+ */
+function bump_graph_version(graph: workflow_graph): workflow_graph {
+    return { ...graph, version: (graph.version ?? 0) + 1 };
+}
+
 export type workflow_action =
     | { type: 'graph/load'; graph: workflow_graph; view?: workflow_view }
     | { type: 'graph/add_node'; node: graph_node; position: { x: number; y: number } }
@@ -47,14 +55,14 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
         case 'graph/add_node':
             return {
                 ...state,
-                graph: { ...state.graph, nodes: [...state.graph.nodes, action.node] },
+                graph: bump_graph_version({ ...state.graph, nodes: [...state.graph.nodes, action.node] }),
                 view: { ...state.view, positions: { ...state.view.positions, [action.node.id]: action.position } },
             };
 
         case 'graph/remove_node': {
             const nodes = state.graph.nodes.filter((n) => n.id !== action.nodeId);
             const edges = state.graph.edges.filter((e) => e.source !== action.nodeId && e.target !== action.nodeId);
-            return { ...state, graph: { ...state.graph, nodes, edges } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, nodes, edges }) };
         }
 
         case 'graph/update_node': {
@@ -80,7 +88,7 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
                 }
                 return next;
             });
-            return { ...state, graph: { ...state.graph, nodes } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, nodes }) };
         }
 
         case 'graph/connect_edge': {
@@ -100,11 +108,11 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
                         target: action.target,
                     },
                 ];
-            return { ...state, graph: { ...state.graph, edges } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, edges }) };
         }
 
         case 'graph/remove_edge':
-            return { ...state, graph: { ...state.graph, edges: state.graph.edges.filter((e) => e.id !== action.edgeId) } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, edges: state.graph.edges.filter((e) => e.id !== action.edgeId) }) };
 
         case 'graph/update_edge': {
             const edges = state.graph.edges.map((e) => {
@@ -120,12 +128,12 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
                 }
                 return next;
             });
-            return { ...state, graph: { ...state.graph, edges } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, edges }) };
         }
 
         case 'graph/set_condition_edges': {
             const others = state.graph.edges.filter((e) => e.source !== action.source);
-            return { ...state, graph: { ...state.graph, edges: [...others, ...action.edges] } };
+            return { ...state, graph: bump_graph_version({ ...state.graph, edges: [...others, ...action.edges] }) };
         }
 
         case 'view/move_node':

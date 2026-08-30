@@ -38,85 +38,110 @@
     font-weight: 600;
     font-size: 14px;
     flex: 1;
-}
-
-.workflow-node .node-header .status-icon {
-    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .workflow-node .node-content {
     font-size: 13px;
 }
 
-.node-expanded-wrap {
+.workflow-node .node-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    font-size: 11px;
+    line-height: 1;
+    user-select: none;
+}
+
+.workflow-node .node-status-duration {
+    font-size: 10px;
+}
+
+.node-result {
     position: absolute;
     top: 100%;
     left: 0;
     margin-top: 8px;
+    width: 100%;
     pointer-events: auto;
+    z-index: 3;
 }
 
-.node-expanded-toggle {
+.node-result-toggle {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
-    color: #8c8c8c;
-    cursor: pointer;
-    padding: 4px 10px;
-    border-radius: 6px;
-    transition: all 0.2s;
-    user-select: none;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.55);
     background-color: #ffffff;
-    border: 1px solid #d9d9d9;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 6px;
+    padding: 3px 10px;
+    cursor: pointer;
+    user-select: none;
 }
 
-.node-expanded-panel {
-    width: 320px;
-    padding: 16px;
-    margin-top: 8px;
+.node-result-panel {
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 8px;
-    box-sizing: border-box;
-    transition: all 0.3s ease;
+    background-color: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
 }
 
-.node-expanded-title {
+.node-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.node-result-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.node-result-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0 4px;
+}
+
+.node-result-section-title {
     font-size: 12px;
-    font-weight: 500;
-    margin-bottom: 12px;
+    color: rgba(0, 0, 0, 0.55);
 }
 
-.node-expanded-message {
-    font-size: 10px;
-    padding: 8px 10px;
-    border-radius: 4px;
-    margin-bottom: 8px;
+.node-result-editor {
+    height: 140px;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-.node-expanded-section {
-    margin-bottom: 16px;
+.node-result-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.55);
 }
 
-.node-expanded-section:last-child {
-    margin-bottom: 0;
-}
-
-.node-expanded-section .section-title {
-    font-size: 12px;
-    margin-top: 8px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.45);
-}
-
-.node-expanded-section .section-content {
-    font-size: 14px;
-    padding: 8px 12px;
-    border-radius: 4px;
+.node-result-stats b {
     color: rgba(0, 0, 0, 0.85);
-    background-color: rgba(0, 0, 0, 0.02);
+    font-weight: 500;
 }
 
-.handle-host {
+/**
+ * 提权以覆盖 React Flow 基础 .react-flow__handle：同特异性按加载顺序，基础样式靠后会把默认深色渲染出来。
+ */
+:global(.react-flow__handle).handle-host {
     background: none;
     border: none;
     width: 14px;

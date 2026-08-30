@@ -22,7 +22,8 @@ export {
     is_condition_edge,
 } from './canonical';
 export { EMPTY_RUNTIME } from './types';
-export { from_canonical, to_canonical } from './react-flow-mapping';
+export { from_canonical, to_canonical, project_stable } from './react-flow-mapping';
+export type { projection_cache } from './react-flow-mapping';
 export { workflow_reducer } from './reducer';
 export type { workflow_action } from './reducer';
 export { workflow_state_context, useWorkflowState } from './workflow-state-context';

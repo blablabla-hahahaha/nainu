@@ -20,6 +20,7 @@ export function NodeFieldItem(props: node_field_item_props) {
         disabled,
         internal_ref_options,
         reverse,
+        syncAliasToValue,
         name,
         required,
         help,
@@ -35,6 +36,7 @@ export function NodeFieldItem(props: node_field_item_props) {
         disabled,
         internal_ref_options,
         reverse,
+        syncAliasToValue,
     };
 
     return (

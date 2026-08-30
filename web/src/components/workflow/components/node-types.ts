@@ -3,7 +3,7 @@ import { theme } from 'antd';
 import type { NodeProps as XYFlowNodeProps } from "@xyflow/react";
 import type { ItemType } from "antd/es/menu/interface";
 import { create_node_status_styles } from './status';
-import type { node_status, node_status_type } from './status';
+import type { node_status, node_status_style } from './status';
 
 /**
  * 工作流节点通用 Props。
@@ -36,25 +36,18 @@ export function useNodeStyles(): node_styles_bundle {
     };
 }
 
-type node_status_style_map = Record<node_status_type, ReturnType<typeof create_node_status_styles>[node_status_type]>;
-
 /**
- * 纯函数：合并状态、边框、选中态生成最终节点样式。
+ * 纯函数：节点外壳恒用默认样式（背景/阴影），边框颜色由调用方给（状态色或透明/选中态）。
+ * 边框宽度/样式恒定，改变边框颜色不改变节点尺寸。
  */
 export function build_node_style(
-    status: node_status | undefined,
-    data_status: node_status | undefined,
-    by_type: node_status_style_map,
-    selected: boolean,
-    dragging: boolean,
+    base: node_status_style,
+    borderColor: string,
 ): CSSProperties {
-    const effective = status || data_status;
-    const status_type = effective?.type || 'default';
-    const status_style = by_type[status_type];
     return {
-        backgroundColor: status_style.color.background,
-        boxShadow: `0 2px 8px ${status_style.color.boxShadow}30, 0 1px 3px ${status_style.color.boxShadow}20`,
-        border: `${status_style.borderWidth}px ${status_style.borderStyle} ${selected && !dragging ? status_style.color.border : 'transparent'}`,
-        color: status_style.color.text,
+        backgroundColor: base.color.background,
+        boxShadow: `0 2px 8px ${base.color.boxShadow}30, 0 1px 3px ${base.color.boxShadow}20`,
+        border: `${base.borderWidth}px ${base.borderStyle} ${borderColor}`,
+        color: base.color.text,
     };
 }

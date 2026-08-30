@@ -5,6 +5,7 @@
 
 import {Button, Form, theme} from 'antd';
 import {PlusOutlined} from '@ant-design/icons';
+import {useMemo} from 'react';
 import {type node_settings_props, NodeSetting} from '@/components/workflow/components/node-setting';
 import {
     type branch_operator_definition,
@@ -15,6 +16,10 @@ import {
 import {BranchOperatorForm} from './branch-operator-form';
 import {uuid} from '@/utils/id-gen';
 import {useWorkflowState} from '@/components/workflow/graph';
+import {
+    compute_internal_ref_options,
+    type internal_ref_option,
+} from '@/components/workflow/extends/node-field/node-field';
 
 /**
  * 条件分支节点 Settings 面板（分支列表 + IF/ELIF/ELSE 增删，落 canonical 边）。
@@ -23,6 +28,11 @@ export default function ConditionSettings({ nodeId, onClose }: node_settings_pro
     const [form] = Form.useForm();
     const { token } = theme.useToken();
     const { state, dispatch } = useWorkflowState();
+
+    const internal_ref_options: internal_ref_option[] = useMemo(
+        () => compute_internal_ref_options(nodeId, state.graph.nodes, state.graph.edges),
+        [nodeId, state.graph.nodes, state.graph.edges],
+    );
 
     const sourceEdges = state.graph.edges.filter(e => e.source === nodeId && e.condition);
 
@@ -84,6 +94,7 @@ export default function ConditionSettings({ nodeId, onClose }: node_settings_pro
                                             name={name}
                                             branch={name === 0 ? 'IF' : 'ELIF'}
                                             onRemove={() => remove(key)}
+                                            internal_ref_options={internal_ref_options}
                                         />
                                     </div>
                                 ))}

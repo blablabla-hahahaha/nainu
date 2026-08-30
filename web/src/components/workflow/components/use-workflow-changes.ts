@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Dispatch } from 'react';
 import type { NodeChange, EdgeChange, Node, Edge } from '@xyflow/react';
 import { useSnapGuide, type guide_line_payload } from './use-snap-guide';
@@ -29,12 +29,15 @@ export function useWorkflowChanges(
         guide.setVertical,
     );
 
+    const nodes_ref = useRef(nodes);
+    nodes_ref.current = nodes;
+
     const onNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         reset_guide_lines();
 
         const filtered = changes.filter(change => {
             if (change.type !== 'remove') return true;
-            const node = nodes.find(n => n.id === change.id);
+            const node = nodes_ref.current.find(n => n.id === change.id);
             return !is_start(node?.type);
         });
 
@@ -49,7 +52,7 @@ export function useWorkflowChanges(
                 });
             }
         }
-    }, [nodes, dispatch, apply_snap_to_change, reset_guide_lines]);
+    }, [dispatch, apply_snap_to_change, reset_guide_lines]);
 
     const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
         for (const change of changes) {

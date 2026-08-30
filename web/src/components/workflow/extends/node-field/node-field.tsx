@@ -19,6 +19,7 @@ export interface node_field_props {
     disabled?: boolean;
     internal_ref_options?: internal_ref_option[];
     reverse?: boolean;
+    syncAliasToValue?: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export function NodeField({
     disabled = false,
     internal_ref_options,
     reverse = false,
+    syncAliasToValue = false,
 }: node_field_props) {
     const handle_alias_change = (e: React.ChangeEvent<HTMLInputElement>) => {
         onChange?.({ ...value, alias: e.target.value, value: value.value });
@@ -45,11 +47,22 @@ export function NodeField({
     };
 
     const handle_value_change = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange?.({ ...value, value: e.target.value });
+        const next = { ...value, value: e.target.value };
+        // 便捷交互：输出字段填了 key 且别名为空时，自动把 key 同步为别名。
+        if (syncAliasToValue && !next.alias) {
+            next.alias = e.target.value;
+        }
+        onChange?.(next);
     };
 
-    const handle_upstream_output_change = (new_value: string) => {
-        onChange?.({ ...value, value: new_value });
+    const handle_upstream_output_change = (new_value: string | undefined, option?: internal_ref_option | internal_ref_option[]) => {
+        const next = { ...value, value: new_value ?? '' };
+        // 选中内部引用后把字段别名同步为引用名，使落库的 key 语义化而非随机串。
+        const selected = Array.isArray(option) ? option[0] : option;
+        if (selected?.ref_name) {
+            next.alias = selected.ref_name;
+        }
+        onChange?.(next);
     };
 
     const should_show_upstream_select = value.type === 'INTERNAL_REF'

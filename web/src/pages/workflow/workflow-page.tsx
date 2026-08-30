@@ -34,12 +34,13 @@ function init_workflow_state(): workflow_state {
     const graph: workflow_graph = {
         id: 'editor-demo',
         name: '新工作流',
+        version: 1,
         nodes: [
             { id: 'start', type: 'START', config: { name: '开始节点' } },
             {
                 id: 'debug',
                 type: 'DEBUG',
-                config: { name: '指定输出' },
+                config: { name: '指定输出', jsonTemplate: '{"result_username":"张三0","result_age":10}' },
                 output: [
                     { key: 'result_username', keyAlias: 'username' },
                     { key: 'result_age', keyAlias: 'age' },

@@ -15,6 +15,11 @@ spring:
       initial-size: 5
       max-size: 20
 
+nainu-agi:
+  sandbox:
+    # 沙箱服务地址（编码节点经此远程执行；独立部署，不共享实例）
+    base-url: http://localhost:8090
+
 logging:
   level:
     nainu.top.agi.master: DEBUG

@@ -1,0 +1,13 @@
+server:
+  port: 8090
+
+sandbox:
+  # 策略：local（默认，clone 即跑、零集群）/ kubernetes（需集群，得扩缩容与插件化）
+  type: local
+  session:
+    ttl: 30m
+    cleanup-ms: 600000
+
+logging:
+  level:
+    nainu.top.agi.sandbox: DEBUG

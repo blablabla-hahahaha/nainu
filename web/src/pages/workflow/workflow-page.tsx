@@ -17,6 +17,7 @@ import { default as OutputNode } from "./nodes/output/output-node";
 import { default as Condition } from "./nodes/condition/condition-node";
 import { default as ConditionSettings } from "./nodes/condition/condition-settings";
 import { default as OutputSettings } from "./nodes/output/output-settings";
+import { ScriptNode, ScriptSettings } from "./nodes/script";
 
 const page_canvas_style = {
     position: 'absolute' as const,
@@ -54,16 +55,35 @@ function init_workflow_state(): workflow_state {
                     { key: 'result_age', keyAlias: 'age' },
                 ],
             },
-            { id: 'condition', type: 'CONDITION', config: { name: '条件分支' }, input: [{ key: 'username', type: 'INTERNAL_REF', value: 'debug:username' }] },
+            {
+                id: 'code',
+                type: 'SCRIPT',
+                config: {
+                    name: '编码节点',
+                    language: 'javascript',
+                    script: 'function main() {\n  return { username: params.username, age: params.age, greeting: "你好 " + params.username };\n}',
+                },
+                input: [
+                    { key: 'username', type: 'INTERNAL_REF', value: 'debug:username' },
+                    { key: 'age', type: 'INTERNAL_REF', value: 'debug:age' },
+                ],
+                output: [
+                    { key: 'username', keyAlias: 'username' },
+                    { key: 'age', keyAlias: 'age' },
+                    { key: 'greeting', keyAlias: 'greeting' },
+                ],
+            },
+            { id: 'condition', type: 'CONDITION', config: { name: '条件分支' }, input: [{ key: 'username', type: 'INTERNAL_REF', value: 'code:username' }] },
             { id: 'end_1', type: 'DEBUG', config: { name: '分支一' } },
             { id: 'end_2', type: 'DEBUG', config: { name: '分支二' } },
             { id: 'end', type: 'END', config: { name: '结束' } },
         ],
         edges: [
             { id: 'e1', source: 'start', target: 'debug' },
-            { id: 'e2', source: 'debug', target: 'condition' },
+            { id: 'e2', source: 'debug', target: 'code' },
+            { id: 'e3', source: 'code', target: 'condition' },
             {
-                id: 'e3',
+                id: 'e4',
                 source: 'condition',
                 target: 'end_1',
                 sourceHandle: 'branch-1',
@@ -72,7 +92,7 @@ function init_workflow_state(): workflow_state {
                     logicOperator: 'AND',
                     conditions: [
                         {
-                            field: { key: 'username', type: 'INTERNAL_REF', value: 'debug:username' },
+                            field: { key: 'username', type: 'INTERNAL_REF', value: 'code:username' },
                             operator: 'EQUALS',
                             value: '张三0',
                         },
@@ -80,24 +100,25 @@ function init_workflow_state(): workflow_state {
                 },
             },
             {
-                id: 'e4',
+                id: 'e5',
                 source: 'condition',
                 target: 'end_2',
                 sourceHandle: 'branch-2',
                 condition: { branchType: 'ELSE' },
             },
-            { id: 'e5', source: 'end_1', target: 'end' },
-            { id: 'e6', source: 'end_2', target: 'end' },
+            { id: 'e6', source: 'end_1', target: 'end' },
+            { id: 'e7', source: 'end_2', target: 'end' },
         ],
     };
     const view: workflow_view = {
         positions: {
             start: { x: 40, y: 200 },
-            debug: { x: 260, y: 200 },
-            condition: { x: 480, y: 200 },
-            end_1: { x: 720, y: 120 },
-            end_2: { x: 720, y: 300 },
-            end: { x: 940, y: 200 },
+            debug: { x: 240, y: 200 },
+            code: { x: 440, y: 200 },
+            condition: { x: 640, y: 200 },
+            end_1: { x: 880, y: 120 },
+            end_2: { x: 880, y: 300 },
+            end: { x: 1100, y: 200 },
         },
     };
     return { graph, view, runtime: EMPTY_RUNTIME };
@@ -135,6 +156,13 @@ export default function WorkflowPage() {
                 icon: create_generic_node_icon(token.colorPrimary),
                 node: OutputNode,
                 nodeSettings: OutputSettings,
+            },
+            {
+                type: 'SCRIPT',
+                label: '编码节点',
+                icon: create_generic_node_icon(token.colorPrimary),
+                node: ScriptNode,
+                nodeSettings: ScriptSettings,
             },
         ]);
     }, [token]);

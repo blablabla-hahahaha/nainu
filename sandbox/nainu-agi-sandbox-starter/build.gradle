@@ -1,0 +1,18 @@
+description = 'Nainu AGI Sandbox Starter (executable service)'
+
+dependencies {
+    implementation project(':sandbox:nainu-agi-sandbox-template')
+    implementation project(':nainu-agi-common')
+    // 默认装配本地策略：clone 即跑、零集群。换 kubernetes 即换策略（见 agent note）。
+    implementation project(':sandbox:nainu-agi-sandbox-local')
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+}
+
+bootJar {
+    enabled = true
+    archiveBaseName = 'nainu-agi-sandbox-starter'
+}
+
+jar {
+    enabled = false
+}

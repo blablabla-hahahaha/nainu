@@ -2,7 +2,7 @@
 
 ## 1. 系统模块总览
 
-系统由 **3 个在役模块 + 2 个挂起骨架** 组成。Master 是执行主体，web 提供编辑与回放，common 承载契约：
+系统由 **4 个在役模块 + 2 个挂起骨架** 组成。Master 是执行主体，web 提供编辑与回放，sandbox 承载编码节点执行，common 承载契约：
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -15,8 +15,14 @@
 ┌────────────────────────────────────────────────────────────┐
 │  Master（Java 21 · WebFlux · graph-core 1.1.2.2 · Redisson）│
 │  DSL 编译（canonical → StateGraph）· 执行（CompiledGraph +   │
-│  RedisSaver 检查点）· trace 九事件 · SCRIPT 节点（GraalVM）   │
-└──────────────┬─────────────────────────────────────────────┘
+│  RedisSaver 检查点）· trace 九事件 · 编码节点经沙箱服务执行   │
+└──────────────────────────┬─────────────────────────────────┘
+                           │ HTTP execute（编码节点）
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  Sandbox（nainu-agi-sandbox-starter，独立可执行服务）        │
+│  策略：local（默认，本地子进程）/ kubernetes（K8s Pod）      │
+└────────────────────────────────────────────────────────────┘
                │ Redis（Redisson 统一客户端）
                ▼
 ┌────────────────────────────────────────────────────────────┐
@@ -46,17 +52,21 @@
 - **条件路由**：typed conditional edge → 每源节点一个集中式 router（graph-core `addConditionalEdges`）
 - **执行**：`threadId = runId`；`RedisSaver` 检查点持久化（暂停/断线可同 threadId 续跑）
 - **trace**：九事件（execution_* × 5 + node_* × 4）写入 Redis Stream `trace:{runId}`（XADD ID 即 seq），SSE 实时推送 + XRANGE 历史重放
-- **脚本节点**：SCRIPT 类型，GraalVM 嵌入沙箱（无 host 访问、无 IO、语句数上限），`params` 注入 + `main()` 约定
+- **编码节点**：SCRIPT 类型，master 侧为远程 HTTP 客户端（经 `WorkflowSandboxClient`），执行交给独立沙箱服务（`params` 注入 + `main()` 约定）
 - 暂停/恢复：graph-core 取消语义（at-least-once，被中断节点 resume 后重跑）
 
-### 2.3 Common — 契约层
+### 2.3 Sandbox — 编码节点执行
+
+独立可执行服务（`nainu-agi-sandbox-starter`）：唯一负责无状态代码执行（run code → return result），master 经 HTTP 单向调用、不共享实例。按 `SandboxStrategy` SPI 调度隔离的沙箱：`-local`（本地全新子解释器，clone 即跑、隔离最弱、仅开发）默认装配；`-kubernetes`（K8s Pod，强隔离 + 动态扩缩容 + 插件化）可选。`-template` 是给 workflow 用的契约 SDK（execute DTO + `WorkflowSandboxClient` 门面 + `SandboxStrategy` SPI），master 只依赖它，背不上 Docker / K8s 重依赖。
+
+### 2.4 Common — 契约层
 
 - DSL 模型（`nainu.top.agi.common.dsl`）：GraphDefinition / NodeDefinition / EdgeDefinition（含条件边）/ 字段定义
 - `workflow-dsl.schema.json`：JSON Schema 2020-12 单一权威（结构校验 + TS 类型生成源）
 - trace 事件模型（`nainu.top.agi.common.trace`）：TraceEvent / TraceEventType
 - 异常体系 + JSON 工具
 
-### 2.4 gateway / worker — 骨架挂起
+### 2.5 gateway / worker — 骨架挂起
 
 仅应用入口与配置；触发条件见 [Agent Note](../.agents/notes/implemented/architecture/2026-08-30-workflow-platform-architecture.md)。
 
@@ -76,11 +86,12 @@
 
 | 层 | 技术 |
 |---|---|
-| Master | Java 21 · Spring Boot 3.5.8 · WebFlux（Reactor）· Spring AI Alibaba Graph 1.1.2.2（graph-core，配 Spring AI 1.1.2）· Redisson 3.45（Redis 统一客户端）· GraalVM polyglot 24.2（脚本沙箱）· Caffeine（编译缓存） |
+| Master | Java 21 · Spring Boot 3.5.8 · WebFlux（Reactor）· Spring AI Alibaba Graph 1.1.2.2（graph-core，配 Spring AI 1.1.2）· Redisson 3.45（Redis 统一客户端）· Caffeine（编译缓存） |
+| Sandbox | Java 21 · Spring Boot 3.5.8 · WebFlux（`-starter`）· JDK HttpClient（`-template` 客户端）· Jackson（`-template` / `-local`） |
 | Common | Java 21 · Jackson |
 | web | React 19 · TS 5.8 · Vite 6 · AntD 6 · React Flow（@xyflow/react）· ajv + json-schema-to-typescript（契约） |
 | 存储 | Redis（检查点 / 事件日志 / 锁预留） |
 
 ## 5. 与愿景的关系
 
-本架构兑现 [vision.md](vision.md) 的地基：canonical DSL 为智能原子单位（可持久化、可机械验证——`verify-dsl-contract` 门禁）；trace 九事件 + Redis Streams 为一等公民（断点续跑、事件日志、上下文重放）；typed conditional edge 为 schema 窄通道的边语义；SCRIPT 沙箱为治理旋钮雏形。react 节点、workflow 即节点、神经元市场按愿景演化路线逐阶段落地。
+本架构兑现 [vision.md](vision.md) 的地基：canonical DSL 为智能原子单位（可持久化、可机械验证——`verify-dsl-contract` 门禁）；trace 九事件 + Redis Streams 为一等公民（断点续跑、事件日志、上下文重放）；typed conditional edge 为 schema 窄通道的边语义；独立沙箱服务为编码节点执行与治理旋钮雏形。react 节点、workflow 即节点、神经元市场按愿景演化路线逐阶段落地。

@@ -1,0 +1,8 @@
+description = 'Nainu AGI Sandbox Local Strategy'
+
+dependencies {
+    implementation project(':sandbox:nainu-agi-sandbox-template')
+    implementation project(':nainu-agi-common')
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+}

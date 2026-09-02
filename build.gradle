@@ -76,3 +76,8 @@ project(':nainu-agi-gateway') {
 project(':nainu-agi-worker') {
     apply plugin: 'org.springframework.boot'
 }
+
+// 仅 sandbox-starter 是可执行服务；-template / -local 是普通库（约束按需引入、不背重依赖）。
+project(':sandbox:nainu-agi-sandbox-starter') {
+    apply plugin: 'org.springframework.boot'
+}

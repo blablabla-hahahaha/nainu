@@ -6,6 +6,8 @@ ext {
 
 dependencies {
     implementation project(':nainu-agi-common')
+    // 编码（SCRIPT）节点不再内嵌脚本运行时：仅依赖契约 SDK（execute DTO + 客户端门面），执行交给独立沙箱服务。
+    implementation project(':sandbox:nainu-agi-sandbox-template')
 
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
@@ -13,8 +15,6 @@ dependencies {
 
     implementation 'com.github.ben-manes.caffeine:caffeine'
     implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-graph-core'
-    implementation 'org.graalvm.polyglot:polyglot:24.2.0'
-    implementation 'org.graalvm.js:js:24.2.0'
     implementation "org.postgresql:r2dbc-postgresql:$r2dbcVersion"
 }
 

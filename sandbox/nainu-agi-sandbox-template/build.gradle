@@ -1,0 +1,6 @@
+description = 'Nainu AGI Sandbox SPI SDK (workflow-facing)'
+
+dependencies {
+    implementation project(':nainu-agi-common')
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+}

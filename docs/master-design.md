@@ -2,7 +2,7 @@
 
 ## 1. 模块定位
 
-Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph-core StateGraph）、执行（CompiledGraph + RedisSaver 检查点）、trace 事件（九事件 → Redis Streams）、脚本节点（GraalVM 嵌入沙箱）。执行后端为 [Spring AI Alibaba Graph](https://github.com/alibaba/spring-ai-alibaba)（graph-core 1.1.2.2）；DSL 是自持资产，框架差异由编译器吸收。
+Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph-core StateGraph）、执行（CompiledGraph + RedisSaver 检查点）、trace 事件（九事件 → Redis Streams）；编码（SCRIPT）节点的执行经独立沙箱服务（HTTP 远程）完成，见 [standalone sandbox service](../.agents/notes/proposed/architecture/2026-09-02-standalone-code-sandbox-service.md)。执行后端为 [Spring AI Alibaba Graph](https://github.com/alibaba/spring-ai-alibaba)（graph-core 1.1.2.2）；DSL 是自持资产，框架差异由编译器吸收。
 
 ## 2. DSL 契约
 
@@ -34,7 +34,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 | START / END | graph-core 虚拟节点 | 编译器映射到 `StateGraph.START/END` |
 | CONDITION | 纯路由点（NoopExecutor） | 出边为条件边，router 求值路由 |
 | DEBUG | Master 内部 | 固定演示数据 |
-| SCRIPT | GraalVM 沙箱 | `params` 注入 + `main()` 约定（见 §5） |
+| SCRIPT | 沙箱服务（远程 HTTP） | 脚本 + `params` 发给沙箱服务执行，`main()` 约定（见 §6） |
 
 ### 2.4 字段引用
 
@@ -61,7 +61,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 4.2 NodeActionAdapter
 
-统一壳（`compile/`）：trace `node_started`（含节点输入快照——解析后的值）→ 输入解析（INTERNAL_REF 读状态）→ delegate 执行器 → trace `node_succeeded/failed`（含按 `node.output` 别名映射后的输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。`node_failed` 事件把抛出异常的 `errorCategory / errorCode / retryable` 三件套盖到事件上；非 `WorkflowException` 异常默认按 `PLATFORM` 归类（未知异常不甩锅给用户）。
+统一壳（`compile/`）：trace `node_started`（含节点输入快照——解析后的值）→ 输入解析（INTERNAL_REF 读状态）→ 经执行器异步变体（`executeAsync`）执行 delegate，IO 型节点（HTTP / LLM / SCRIPT）覆盖该变体以非阻塞方式调用，不阻塞事件循环线程 → trace `node_succeeded/failed`（含按 `node.output` 别名映射后的输出快照与耗时）→ 输出写回状态（`node:{nodeId}.{keyAlias}`，KeyStrategy Replace）。`node_failed` 事件把抛出异常的 `errorCategory / errorCode / retryable` 三件套盖到事件上；非 `WorkflowException` 异常默认按 `PLATFORM` 归类（未知异常不甩锅给用户）。
 
 ### 4.3 状态 key 约定（workflow/StateKeys）
 
@@ -85,9 +85,9 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 Redisson 统一客户端（Lettuce 已退役）。RedisSaver 检查点 + `trace:*` 事件流共用；Caffeine 仅编译缓存。
 
-## 6. 脚本节点（SCRIPT）
+## 6. 编码节点（SCRIPT）
 
-`ScriptExecutor`（`executor/script/`）：GraalVM 嵌入执行 JS（Python 延后）。契约：注入 `params`（JSON 注入为纯 JS 对象）；脚本必须定义 `main()`；返回对象按 output 映射写回。沙箱：`HostAccess.NONE` + `allowIO(false)` + `ResourceLimits.statementLimit`（防死循环主守卫，`onLimit` 日志）；timeLimit / maxHeapMemory 待 GraalVM 升级后补齐（阶段四治理）。失败分类：脚本语法/运行时/类型错误 → `AUTHORING`；不支持的语言/资源上限 → `PLATFORM`；均经 `node_failed` 透出。
+`ScriptExecutor`（`executor/script/`）：master 侧的远程 HTTP 客户端（执行发生在独立沙箱服务，见 [standalone sandbox service](../.agents/notes/proposed/architecture/2026-09-02-standalone-code-sandbox-service.md)）。契约：把 `config.language` + `config.script` + 已解析输入（`params`）打包为 `SandboxExecuteRequest` 经 `WorkflowSandboxClient` 发给沙箱服务；脚本必须定义 `main()`，返回对象按 output 映射写回状态。沙箱服务按所选策略执行：默认 `-local`（本地全新子解释器，clone 即跑、隔离最弱、仅开发）；`-kubernetes`（K8s Pod，强隔离 + 动态扩缩容 + 插件化）。master 前置一层 Python 静态黑名单校验（禁 `subprocess` / 文件写 / `eval` 等）。失败分类：脚本语法/运行时/静态校验错误 → `AUTHORING`；不支持的语言/超时/沙箱服务问题 → `PLATFORM`；均经 `node_failed` 透出。脚本应无副作用或幂等（at-least-once 语义下节点可能重跑）。
 
 ## 7. API
 

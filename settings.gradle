@@ -4,3 +4,8 @@ include 'nainu-agi-common'
 include 'nainu-agi-gateway'
 include 'nainu-agi-master'
 include 'nainu-agi-worker'
+
+// 独立沙箱服务：契约独立成模块、实现按需引入（见 .agents/notes/proposed/architecture/2026-09-02-standalone-code-sandbox-service.md）
+include 'sandbox:nainu-agi-sandbox-template'
+include 'sandbox:nainu-agi-sandbox-local'
+include 'sandbox:nainu-agi-sandbox-starter'

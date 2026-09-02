@@ -17,6 +17,8 @@ import nainu.top.agi.master.workflow.StateKeys;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 /**
  * 节点适配壳：把 DSL 节点包装为 graph-core 的 {@link AsyncNodeActionWithConfig}。
@@ -51,37 +53,49 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
                 .input(resolvedInputs)
                 .occurredAt(startedAt)
                 .build());
+        CompletableFuture<Map<String, Object>> resultFuture;
         try {
-            Map<String, Object> result = executeSync(state, resolvedInputs);
-            traceEmitter.emit(TraceEvent.builder()
-                    .runId(runId)
-                    .type(TraceEventType.NODE_SUCCEEDED)
-                    .nodeId(definition.getId())
-                    .duration(System.currentTimeMillis() - startedAt)
-                    .output(visibleOutput(result))
-                    .occurredAt(System.currentTimeMillis())
-                    .build());
-            return CompletableFuture.completedFuture(writeOutputs(result));
+            resultFuture = executor.executeAsync(
+                    new NodeExecuteRequest(definition.getId(), definition.getType(), definition.getConfig(), resolvedInputs));
         } catch (Exception e) {
-            traceEmitter.emit(TraceEvent.builder()
-                    .runId(runId)
-                    .type(TraceEventType.NODE_FAILED)
-                    .nodeId(definition.getId())
-                    .message(e.getMessage())
-                    .errorCategory(WorkflowException.resolveCategory(e).name())
-                    .errorCode(WorkflowException.resolveErrorCode(e))
-                    .retryable(WorkflowException.resolveRetryable(e))
-                    .detail(WorkflowException.resolveDetail(e))
-                    .occurredAt(System.currentTimeMillis())
-                    .build());
-            return CompletableFuture.failedFuture(e);
+            resultFuture = CompletableFuture.failedFuture(e);
         }
+        return resultFuture
+                .thenApply(result -> {
+                    traceEmitter.emit(TraceEvent.builder()
+                            .runId(runId)
+                            .type(TraceEventType.NODE_SUCCEEDED)
+                            .nodeId(definition.getId())
+                            .duration(System.currentTimeMillis() - startedAt)
+                            .output(visibleOutput(result))
+                            .occurredAt(System.currentTimeMillis())
+                            .build());
+                    return writeOutputs(result);
+                })
+                .whenComplete((result, throwable) -> {
+                    if (throwable != null) {
+                        Throwable cause = unwrap(throwable);
+                        traceEmitter.emit(TraceEvent.builder()
+                                .runId(runId)
+                                .type(TraceEventType.NODE_FAILED)
+                                .nodeId(definition.getId())
+                                .message(cause.getMessage())
+                                .errorCategory(WorkflowException.resolveCategory(cause).name())
+                                .errorCode(WorkflowException.resolveErrorCode(cause))
+                                .retryable(WorkflowException.resolveRetryable(cause))
+                                .detail(WorkflowException.resolveDetail(cause))
+                                .occurredAt(System.currentTimeMillis())
+                                .build());
+                    }
+                });
     }
 
-    private Map<String, Object> executeSync(OverAllState state, Map<String, Object> resolvedInputs) {
-        Map<String, Object> result = executor.execute(
-                new NodeExecuteRequest(definition.getId(), definition.getType(), definition.getConfig(), resolvedInputs));
-        return result;
+    private static Throwable unwrap(Throwable t) {
+        Throwable cur = t;
+        while ((cur instanceof CompletionException || cur instanceof ExecutionException) && cur.getCause() != null) {
+            cur = cur.getCause();
+        }
+        return cur;
     }
 
     private Map<String, Object> resolveInputs(OverAllState state) {

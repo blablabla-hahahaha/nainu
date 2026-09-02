@@ -2,37 +2,42 @@ package nainu.top.agi.master.executor.script;
 
 import nainu.top.agi.common.dsl.NodeDefinition;
 import nainu.top.agi.common.exception.ErrorCategory;
-import nainu.top.agi.common.exception.ErrorCodes;
 import nainu.top.agi.common.exception.WorkflowException;
-import nainu.top.agi.common.util.JsonUtils;
 import nainu.top.agi.master.executor.NodeExecuteRequest;
 import nainu.top.agi.master.executor.NodeExecutor;
-import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.HostAccess;
-import org.graalvm.polyglot.ResourceLimits;
-import org.graalvm.polyglot.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import nainu.top.agi.sandbox.SandboxErrorCodes;
+import nainu.top.agi.sandbox.SandboxExecuteRequest;
+import nainu.top.agi.sandbox.SandboxExecuteResponse;
+import nainu.top.agi.sandbox.SandboxLanguage;
+import nainu.top.agi.sandbox.SandboxLimits;
+import nainu.top.agi.sandbox.WorkflowSandboxClient;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
- * 脚本节点执行器：GraalVM 嵌入沙箱执行 JS（阶段一首语言，Python 延后）。
+ * 编码节点执行器：master 侧的远程 HTTP 客户端（执行真正发生在独立沙箱服务）。
  *
- * <p>契约：注入 {@code params}（按 input 解析的键值对象，JSON 注入为纯 JS 对象）；
- * 脚本必须定义 {@code main()}；返回值按 output 映射写回状态。
- * 沙箱：无 host 访问、无 IO、语句数上限（防死循环主守卫）+ onLimit 日志；
- * timeLimit / maxHeapMemory 待 GraalVM 升级后补齐（阶段四治理演进）。
+ * <p>把 {@code config.language} + {@code config.script} + 已解析输入（{@code params}）打包为
+ * {@link SandboxExecuteRequest}，经 {@link WorkflowSandboxClient} 发给沙箱服务，并把响应结果按
+ * {@code node.output} 映射写回状态。执行是异步的（{@link #executeAsync}），不阻塞事件循环线程。
+ *
+ * <p>脚本前置于一次 Python 静态黑名单校验（禁 {@code subprocess} / 文件写 / {@code eval} 等），
+ * 沙箱内再经隔离；错误沿现存三件套契约归类（脚本问题 → {@code AUTHORING}；不支持语言/超时/服务问题 → {@code PLATFORM}）。
  * 脚本应无副作用或幂等（graph-core at-least-once 语义下节点可能重跑）。
  */
 @Component
 public class ScriptExecutor implements NodeExecutor {
 
-    private static final Logger log = LoggerFactory.getLogger(ScriptExecutor.class);
+    private final WorkflowSandboxClient sandboxClient;
 
-    private static final long MAX_STATEMENTS = 10_000_000L;
+    public ScriptExecutor(WorkflowSandboxClient sandboxClient) {
+        this.sandboxClient = sandboxClient;
+    }
 
     @Override
     public NodeDefinition.NodeType getType() {
@@ -41,84 +46,99 @@ public class ScriptExecutor implements NodeExecutor {
 
     @Override
     public Map<String, Object> execute(NodeExecuteRequest request) {
+        try {
+            return executeAsync(request).join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WorkflowException we) {
+                throw we;
+            }
+            throw new WorkflowException(ErrorCategory.PLATFORM, SandboxErrorCodes.SANDBOX_INTERNAL,
+                    "沙箱调用失败: " + (cause == null ? "unknown" : cause.getMessage()), false, cause);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Object>> executeAsync(NodeExecuteRequest request) {
+        try {
+            SandboxExecuteRequest sandboxRequest = toSandboxRequest(request);
+            return sandboxClient.execute(sandboxRequest).thenApply(this::mapResponse);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private SandboxExecuteRequest toSandboxRequest(NodeExecuteRequest request) {
         Map<String, Object> config = request.getConfig();
         if (config == null) {
-            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EMPTY,
+            throw new WorkflowException(ErrorCategory.AUTHORING, SandboxErrorCodes.SANDBOX_EMPTY,
                     "脚本节点缺少 config（language/script）");
         }
-        String language = String.valueOf(config.getOrDefault("language", "javascript"));
-        String script = String.valueOf(config.get("script"));
-        if (script == null || script.isEmpty()) {
-            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EMPTY, "脚本内容为空");
+        String languageCode = String.valueOf(config.getOrDefault("language", "javascript"));
+        String script = config.get("script") == null ? null : String.valueOf(config.get("script"));
+        if (!StringUtils.hasText(script)) {
+            throw new WorkflowException(ErrorCategory.AUTHORING, SandboxErrorCodes.SANDBOX_EMPTY, "脚本内容为空");
         }
-        if (!"javascript".equalsIgnoreCase(language)) {
-            throw new WorkflowException(ErrorCategory.PLATFORM, ErrorCodes.SCRIPT_UNSUPPORTED_LANGUAGE,
-                    "暂不支持脚本语言: " + language + "（当前仅 javascript）");
+        SandboxLanguage language = parseLanguage(languageCode);
+        if (language == SandboxLanguage.PYTHON && containsForbiddenOperation(script)) {
+            throw new WorkflowException(ErrorCategory.AUTHORING, SandboxErrorCodes.SANDBOX_STATIC_CHECK_FAILED,
+                    "脚本包含被禁止的危险操作（subprocess / 文件写 / eval 等），已在沙箱外拦截");
         }
+        Map<String, Object> params = request.getResolvedInputs() == null ? Map.of() : request.getResolvedInputs();
+        String image = config.get("image") == null ? null : String.valueOf(config.get("image"));
+        return new SandboxExecuteRequest(language, script, params, parseLimits(config.get("limits")), image, null, request.getNodeId());
+    }
 
-        String paramsJson = JsonUtils.toJson(request.getResolvedInputs() == null ? Map.of() : request.getResolvedInputs());
+    private Map<String, Object> mapResponse(SandboxExecuteResponse response) {
+        if (response.success()) {
+            return response.result() == null ? Map.of() : response.result();
+        }
+        ErrorCategory category = response.errorCategory() == null ? ErrorCategory.PLATFORM : response.errorCategory();
+        String detail = response.detail() != null ? response.detail()
+                : (StringUtils.hasText(response.stderr()) ? response.stderr() : "沙箱执行失败");
+        throw new WorkflowException(category, response.errorCode(), detail, false, null);
+    }
 
-        ResourceLimits limits = ResourceLimits.newBuilder()
-                .statementLimit(MAX_STATEMENTS, source -> true)
-                .onLimit(event -> log.warn("脚本达到语句数上限，执行将被终止"))
-                .build();
-
-        try (Context context = Context.newBuilder("js")
-                .allowHostAccess(HostAccess.NONE)
-                .allowIO(false)
-                .resourceLimits(limits)
-                .build()) {
-            context.eval("js", "params = " + paramsJson + ";");
-            context.eval("js", script + "\nmain();");
-            Value bindings = context.getBindings("js");
-            Value main = bindings.getMember("main");
-            Value result = main.execute();
-            return toResultMap(result);
-        } catch (RuntimeException e) {
-            // 脚本语法/运行时/类型错误：用户的脚本问题，大声失败。
-            throw new WorkflowException(ErrorCategory.AUTHORING, ErrorCodes.SCRIPT_EXECUTION_FAILED,
-                    "脚本执行失败: " + e.getMessage(), false, e);
+    private static SandboxLanguage parseLanguage(String code) {
+        try {
+            return SandboxLanguage.fromCode(code);
+        } catch (IllegalArgumentException e) {
+            throw new WorkflowException(ErrorCategory.PLATFORM, SandboxErrorCodes.SANDBOX_UNSUPPORTED_LANGUAGE,
+                    "暂不支持脚本语言: " + code, false, e);
         }
     }
 
-    private static Map<String, Object> toResultMap(Value result) {
-        Map<String, Object> map = new HashMap<>();
-        if (result == null || result.isNull() || !result.hasMembers()) {
-            return map;
+    private static SandboxLimits parseLimits(Object limits) {
+        if (!(limits instanceof Map<?, ?> m)) {
+            return SandboxLimits.DEFAULT;
         }
-        for (String key : result.getMemberKeys()) {
-            map.put(key, toJavaValue(result.getMember(key)));
-        }
-        return map;
+        return new SandboxLimits(toLong(m.get("timeoutMs")), toLong(m.get("maxMemoryMb")), toLong(m.get("maxOutputBytes")));
     }
 
-    private static Object toJavaValue(Value value) {
-        if (value == null || value.isNull()) {
-            return null;
+    private static Long toLong(Object value) {
+        if (value instanceof Number n) {
+            return n.longValue();
         }
-        if (value.isNumber()) {
-            return value.fitsInLong() ? value.asLong() : value.asDouble();
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean();
-        }
-        if (value.isString()) {
-            return value.asString();
-        }
-        if (value.hasArrayElements()) {
-            java.util.List<Object> list = new java.util.ArrayList<>();
-            for (long i = 0; i < value.getArraySize(); i++) {
-                list.add(toJavaValue(value.getArrayElement(i)));
+        return null;
+    }
+
+    /**
+     * Python 静态黑名单：禁 subprocess / 文件写 / eval 等危险操作（大小写不敏感子串匹配）。
+     * 这是沙箱外的前置一层，属启发式、会过度拦截（如变量名含 socket），以安全为先。
+     */
+    private static boolean containsForbiddenOperation(String script) {
+        String lower = script.toLowerCase();
+        for (String token : FORBIDDEN_TOKENS) {
+            if (lower.contains(token)) {
+                return true;
             }
-            return list;
         }
-        if (value.hasMembers()) {
-            Map<String, Object> map = new HashMap<>();
-            for (String key : value.getMemberKeys()) {
-                map.put(key, toJavaValue(value.getMember(key)));
-            }
-            return map;
-        }
-        return value.toString();
+        return false;
     }
+
+    private static final List<String> FORBIDDEN_TOKENS = List.of(
+            "import subprocess", "from subprocess",
+            "os.system", "os.popen", "os.spawn", "os.execl", "os.execv",
+            "os.remove", "os.unlink", "os.rmdir", "os.rename", "os.chmod", "os.chown", "os.kill",
+            "shutil.", "__import__", "eval(", "exec(", "compile(", "open(", "file(", "socket", "pty");
 }

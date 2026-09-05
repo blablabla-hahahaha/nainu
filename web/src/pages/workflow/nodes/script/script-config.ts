@@ -16,12 +16,21 @@ export const script_language_options: monaco_code_editor_language_option[] = [
 ];
 
 /**
- * 各语言默认脚本模板（约定定义 main()，返回值作为节点输出）。
+ * 各语言默认示例脚本（约定定义 main()，返回值作为节点输出）。
+ * 这是新节点快速开始的教学 demo：演示「编写逻辑 → 返回对象（对应输出字段）」的契约。
  */
 export const default_script_by_language: Record<script_language, string> = {
-    python: "def main():\n    return {}",
-    javascript: "function main() {\n  return {};\n}",
+    python: "def main():\n    # 在这里编写你的逻辑；返回值将写入节点输出字段\n    message = '你好，编码脚本'\n    return {'message': message}",
+    javascript: "function main() {\n  // 在这里编写你的逻辑；返回值将写入节点输出字段\n  const message = '你好，编码脚本';\n  return { message: message };\n}",
 };
+
+/**
+ * 判断脚本内容是否为某个语言的默认示例。
+ * 用于切换语言时仅重写「未被用户修改」的 demo，保留用户已手写的代码。
+ */
+export function is_default_script(script: string): boolean {
+    return Object.values(default_script_by_language).includes(script);
+}
 
 /**
  * 编辑面板表单值（从 canonical 节点 config/input/output 初始化，经 watch 写回）。
@@ -53,6 +62,17 @@ export function build_initial_script_values(node: graph_node | undefined): scrip
     const script = typeof config['script'] === 'string'
         ? config['script']
         : default_script_by_language[language];
+    // 兼容历史错配：config.language 与 config.script 可能脱节（如 language 仍为 javascript 而 script 已是 python demo），
+    // 若 script 恰是某语言的默认示例，则让语言随脚本对齐，确保 language/script 始终配对（否则沙箱用错语言执行）。
+    let resolved_language = language;
+    if (typeof config['script'] === 'string') {
+        for (const [lang, demo] of Object.entries(default_script_by_language)) {
+            if (demo === script && is_script_language(lang)) {
+                resolved_language = lang;
+                break;
+            }
+        }
+    }
     const limits = (config['limits'] ?? {}) as Record<string, unknown>;
     const inputs: node_field_definition[] = (node?.input ?? []).map(f => ({
         alias: f.key,
@@ -64,7 +84,7 @@ export function build_initial_script_values(node: graph_node | undefined): scrip
         alias: o.keyAlias && o.keyAlias.length > 0 ? o.keyAlias : o.key,
     }));
     return {
-        language,
+        language: resolved_language,
         script,
         timeout_ms: typeof limits['timeoutMs'] === 'number' ? limits['timeoutMs'] as number : undefined,
         max_memory_mb: typeof limits['maxMemoryMb'] === 'number' ? limits['maxMemoryMb'] as number : undefined,

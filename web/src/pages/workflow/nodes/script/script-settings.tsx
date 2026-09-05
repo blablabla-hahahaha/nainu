@@ -1,16 +1,19 @@
-import { useEffect } from 'react';
-import { Flex, Form, InputNumber } from 'antd';
+import { useCallback, useEffect } from 'react';
+import { Flex, Form, Input, InputNumber } from 'antd';
 import { NodeSetting, type node_settings_props } from '@/components/workflow/components/node-setting';
 import { NodeInputFields } from '@/components/workflow/extends/node-field/node-input-fields';
 import { NodeOutputFields } from '@/components/workflow/extends/node-field/node-output-fields';
 import type { node_field_definition, node_output_field_definition } from '@/components/workflow/extends/node-field/node-field';
 import { MonacoCodeEditorItem } from '@/components/monaco-code-editor';
+import type { monaco_code_editor_language } from '@/components/monaco-code-editor';
 import { useWorkflowState } from '@/components/workflow/graph';
 import type { graph_node } from '@/components/workflow/graph/types';
 import {
     build_initial_script_values,
     build_limits,
+    default_script_by_language,
     inputs_equal,
+    is_default_script,
     is_script_language,
     limits_equal,
     outputs_equal,
@@ -42,6 +45,20 @@ export default function ScriptSettings({ nodeId, onClose }: node_settings_props)
     const node = state.graph.nodes.find((n) => n.id === nodeId);
 
     const watched = Form.useWatch([], form) as script_node_form_values | undefined;
+
+    // 切换语言时：仅当脚本仍是某语言的默认 demo（未被用户改写）时，重写为新语言的默认 demo，
+    // 保留用户已手写的逻辑——demo 只做「快速开始」，不覆盖用户工作。
+    const handle_language_change = useCallback(
+        (next: monaco_code_editor_language) => {
+            if (!is_script_language(next)) return;
+            const current_script = form.getFieldValue('script');
+            if (typeof current_script === 'string' && is_default_script(current_script)) {
+                // 语言与脚本一次性写入，避免二者落到不同节点/不同步状态。
+                form.setFieldsValue({ language: next, script: default_script_by_language[next] });
+            }
+        },
+        [form],
+    );
 
     useEffect(() => {
         if (!watched) return;
@@ -93,6 +110,10 @@ export default function ScriptSettings({ nodeId, onClose }: node_settings_props)
             onValidate={() => validate_script_values(form.getFieldsValue() as script_node_form_values)}
         >
             <Form form={form} layout="vertical" initialValues={build_initial_script_values(node)}>
+                {/* language 由 Monaco 下拉经 setFieldValue 写入，需注册为表单字段使 useWatch 观测到并持久化 */}
+                <Form.Item name="language" hidden>
+                    <Input />
+                </Form.Item>
                 <Form.Item label="输入字段">
                     <NodeInputFields name="inputs" nodeId={nodeId} />
                 </Form.Item>
@@ -104,6 +125,7 @@ export default function ScriptSettings({ nodeId, onClose }: node_settings_props)
                     language={language}
                     language_options={script_language_options}
                     width="100%"
+                    on_language_change={handle_language_change}
                     tooltip="脚本必须定义 main()；返回值写回节点输出字段。脚本在独立沙箱服务执行。"
                 />
 

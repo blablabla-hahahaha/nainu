@@ -26,10 +26,20 @@ export function node_config(node: graph_node): Record<string, unknown> {
     return (node.config ?? {}) as Record<string, unknown>;
 }
 
-/** 节点显示名：config.name ?? type。 */
+/**
+ * 节点类型 → 默认显示名（config.name 缺失时的后备）。
+ * 未列入的类型回退到 DSL 类型名；仅维护需要「用户可读默认名」的类型。
+ */
+const default_node_name_by_type: Partial<Record<graph_node['type'], string>> = {
+    SCRIPT: '编码脚本',
+};
+
+/** 节点显示名：config.name ?? 类型默认显示名。 */
 export function node_name(node: graph_node): string {
     const name = node_config(node)['name'];
-    return typeof name === 'string' && name.trim() ? name : node.type;
+    return typeof name === 'string' && name.trim()
+        ? name
+        : (default_node_name_by_type[node.type] ?? node.type);
 }
 
 export function find_node(graph: workflow_graph, nodeId: string): graph_node | undefined {

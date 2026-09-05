@@ -73,7 +73,7 @@ function init_workflow_state(): workflow_state {
                 id: 'code',
                 type: 'SCRIPT',
                 config: {
-                    name: '编码节点',
+                    name: '编码脚本',
                     language: 'javascript',
                     script: 'function main() {\n  return { username: params.username, age: params.age, greeting: "你好 " + params.username };\n}',
                 },
@@ -173,7 +173,7 @@ export default function WorkflowPage() {
             },
             {
                 type: 'SCRIPT',
-                label: '编码节点',
+                label: '编码脚本',
                 icon: create_generic_node_icon(token.colorPrimary),
                 node: ScriptNode,
                 nodeSettings: ScriptSettings,

@@ -93,6 +93,10 @@ export default function ScriptSettings({ nodeId, onClose }: node_settings_props)
             onValidate={() => validate_script_values(form.getFieldsValue() as script_node_form_values)}
         >
             <Form form={form} layout="vertical" initialValues={build_initial_script_values(node)}>
+                <Form.Item label="输入字段">
+                    <NodeInputFields name="inputs" nodeId={nodeId} />
+                </Form.Item>
+
                 <MonacoCodeEditorItem
                     label="脚本代码"
                     name="script"
@@ -102,10 +106,6 @@ export default function ScriptSettings({ nodeId, onClose }: node_settings_props)
                     width="100%"
                     tooltip="脚本必须定义 main()；返回值写回节点输出字段。脚本在独立沙箱服务执行。"
                 />
-
-                <Form.Item label="输入字段">
-                    <NodeInputFields name="inputs" nodeId={nodeId} />
-                </Form.Item>
 
                 <Form.Item label="资源上限（可选）">
                     <Flex gap={8}>

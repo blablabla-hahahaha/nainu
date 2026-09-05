@@ -68,6 +68,7 @@ export function NodeField({
     const should_show_upstream_select = value.type === 'INTERNAL_REF'
         && internal_ref_options
         && internal_ref_options.length > 0;
+    const type_select_width = 100;
 
     return (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -77,7 +78,7 @@ export function NodeField({
                     onChange={handle_alias_change}
                     placeholder={aliasPlaceholder}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                 />
             )}
             {!disableType && (
@@ -86,7 +87,7 @@ export function NodeField({
                     onChange={handle_type_change}
                     options={node_field_definition_support.getOptions()}
                     disabled={disabled}
-                    style={{ width: 100 }}
+                    style={{ width: type_select_width, flexShrink: 0 }}
                 />
             )}
             {should_show_upstream_select ? (
@@ -96,7 +97,7 @@ export function NodeField({
                     options={internal_ref_options}
                     placeholder="请选择上游输出"
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                     allowClear
                 />
             ) : (
@@ -105,7 +106,7 @@ export function NodeField({
                     onChange={handle_value_change}
                     placeholder={valuePlaceholder}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                 />
             )}
             {reverse && !disableAlias && (
@@ -114,7 +115,7 @@ export function NodeField({
                     onChange={handle_alias_change}
                     placeholder={aliasPlaceholder}
                     disabled={disabled}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                 />
             )}
         </div>

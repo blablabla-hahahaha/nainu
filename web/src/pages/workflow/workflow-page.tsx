@@ -35,6 +35,20 @@ const node_config_card_width = 450;
 const event_log_panel_width = 600;
 /** 检查器内部卡片间距。 */
 const inspector_gap = 12;
+/** 默认工作流节点卡片宽度（与 status.module.css .workflow-node 的 width 保持一致）。 */
+const node_card_width = 235;
+/** 默认工作流相邻节点的水平净空，保证节点间有可见间隔、不互相重叠。 */
+const node_horizontal_gap = 100;
+/** 默认工作流相邻节点的列间距（节点卡片宽度 + 水平净空）。 */
+const node_column_step = node_card_width + node_horizontal_gap;
+/** 默认工作流主行最左节点的 X 坐标。 */
+const node_first_column_x = 40;
+/** 默认工作流主行节点 Y 坐标。 */
+const node_main_row_y = 200;
+/** 默认工作流条件分支上侧分支节点 Y 坐标。 */
+const node_branch_top_y = 120;
+/** 默认工作流条件分支下侧分支节点 Y 坐标。 */
+const node_branch_bottom_y = 300;
 
 /**
  * 初始化三切片状态：编辑器默认图（START/DEBUG/CONDITION/END + 条件边）。
@@ -112,13 +126,13 @@ function init_workflow_state(): workflow_state {
     };
     const view: workflow_view = {
         positions: {
-            start: { x: 40, y: 200 },
-            debug: { x: 240, y: 200 },
-            code: { x: 440, y: 200 },
-            condition: { x: 640, y: 200 },
-            end_1: { x: 880, y: 120 },
-            end_2: { x: 880, y: 300 },
-            end: { x: 1100, y: 200 },
+            start: { x: node_first_column_x, y: node_main_row_y },
+            debug: { x: node_first_column_x + node_column_step, y: node_main_row_y },
+            code: { x: node_first_column_x + 2 * node_column_step, y: node_main_row_y },
+            condition: { x: node_first_column_x + 3 * node_column_step, y: node_main_row_y },
+            end_1: { x: node_first_column_x + 4 * node_column_step, y: node_branch_top_y },
+            end_2: { x: node_first_column_x + 4 * node_column_step, y: node_branch_bottom_y },
+            end: { x: node_first_column_x + 5 * node_column_step, y: node_main_row_y },
         },
     };
     return { graph, view, runtime: EMPTY_RUNTIME };

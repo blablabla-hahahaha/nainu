@@ -15,7 +15,7 @@ interface guide_setters {
 
 /**
  * 钩子：把 ReactFlow Nodes/Edges onChange 翻译为 reducer 动作（受控化）。
- * start 不可删；位置变化经吸附后派发 view/move_node；其余派发对应图变更。
+ * start 不可删；位置变化经吸附后派发 view/move_node；选择变化派发 view/select_nodes。
  */
 export function useWorkflowChanges(
     nodes: Node[],
@@ -32,6 +32,14 @@ export function useWorkflowChanges(
     const nodes_ref = useRef(nodes);
     nodes_ref.current = nodes;
 
+    /**
+     * 受控选择态：React Flow 在受控模式下只经 onNodesChange 派发 select 变更，
+     * 不落 store（内部仅就地改 nodeLookup，不触发订阅），故需在此累积选择集，
+     * 再派发 view/select_nodes 把 selected 落到受控节点上——否则删除热键
+     * （nodes.filter(selected)）无从命中。选择态是纯 UI 状态，不入 canonical 图。
+     */
+    const selected_ids_ref = useRef<Set<string>>(new Set());
+
     const onNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         const has_live_drag = changes.some((c) => c.type === 'position' && c.dragging);
         if (!has_live_drag) {
@@ -44,8 +52,10 @@ export function useWorkflowChanges(
             return !is_start(node?.type);
         });
 
+        let selection_changed = false;
         for (const change of filtered) {
             if (change.type === 'remove') {
+                selected_ids_ref.current.delete(change.id);
                 dispatch({ type: 'graph/remove_node', nodeId: change.id });
             } else if (change.type === 'position' && change.position) {
                 dispatch({
@@ -53,7 +63,18 @@ export function useWorkflowChanges(
                     nodeId: change.id,
                     position: apply_snap_to_change(change).position ?? change.position,
                 });
+            } else if (change.type === 'select') {
+                if (change.selected) {
+                    selected_ids_ref.current.add(change.id);
+                } else {
+                    selected_ids_ref.current.delete(change.id);
+                }
+                selection_changed = true;
             }
+        }
+
+        if (selection_changed) {
+            dispatch({ type: 'view/select_nodes', nodeIds: [...selected_ids_ref.current] });
         }
     }, [dispatch, apply_snap_to_change, reset_guide_lines]);
 

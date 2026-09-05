@@ -122,7 +122,9 @@ export default function OutputSettings({ nodeId, onClose }: node_settings_props)
             dispatch({
                 type: 'graph/update_node',
                 nodeId,
-                config: { ...current_config, name: watched.label ?? '指定输出', jsonTemplate: next_json },
+                // 名称不经本面板改写（label 无对应 Form.Item，useWatch 读不到，会误落成默认名）；
+                // 节点名由 NodeSetting 卡片标题的 EditableText 维护。这里仅同步 jsonTemplate 与输出字段。
+                config: { ...current_config, jsonTemplate: next_json },
                 input: (watched.inputs ?? []).map(f => ({
                     key: f.alias ?? '',
                     type: f.type ?? node_field_definition_support.CUSTOM,

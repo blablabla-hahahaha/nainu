@@ -41,6 +41,7 @@ export type workflow_action =
     | { type: 'graph/update_edge'; edgeId: string; condition?: graph_edge['condition']; target?: string }
     | { type: 'graph/set_condition_edges'; source: string; edges: graph_edge[] }
     | { type: 'view/move_node'; nodeId: string; position: { x: number; y: number } }
+    | { type: 'view/select_nodes'; nodeIds: string[] }
     | { type: 'view/set_viewport'; viewport: { x: number; y: number; zoom: number } }
     | { type: 'runtime/apply_event'; event: trace_event }
     | { type: 'runtime/reset' };
@@ -62,7 +63,8 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
         case 'graph/remove_node': {
             const nodes = state.graph.nodes.filter((n) => n.id !== action.nodeId);
             const edges = state.graph.edges.filter((e) => e.source !== action.nodeId && e.target !== action.nodeId);
-            return { ...state, graph: bump_graph_version({ ...state.graph, nodes, edges }) };
+            const selectedNodeIds = (state.view.selectedNodeIds ?? []).filter((id) => id !== action.nodeId);
+            return { ...state, graph: bump_graph_version({ ...state.graph, nodes, edges }), view: { ...state.view, selectedNodeIds } };
         }
 
         case 'graph/update_node': {
@@ -160,6 +162,16 @@ export function workflow_reducer(state: workflow_state, action: workflow_action)
                     positions: { ...state.view.positions, [action.nodeId]: action.position },
                 },
             };
+
+        case 'view/select_nodes': {
+            const prev = state.view.selectedNodeIds ?? [];
+            const next = action.nodeIds;
+            const same = prev.length === next.length && prev.every((id, i) => id === next[i]);
+            if (same) {
+                return state;
+            }
+            return { ...state, view: { ...state.view, selectedNodeIds: [...next] } };
+        }
 
         case 'view/set_viewport':
             return { ...state, view: { ...state.view, viewport: action.viewport } };

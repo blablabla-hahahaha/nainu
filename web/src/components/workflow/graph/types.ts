@@ -19,10 +19,17 @@ export type graph_condition = DslCondition;
 export type graph_input_field = DslInputField;
 export type graph_output_field = DslOutputField;
 
-/** 视图切片：布局（位置/视口），可丢弃，持久化到 graph.meta.view。 */
+/** 视图切片：布局（位置/视口）与选择态，可丢弃，持久化到 graph.meta.view。 */
 export interface workflow_view {
     positions: Record<string, { x: number; y: number }>;
     viewport?: { x: number; y: number; zoom: number };
+    /**
+     * 当前选中的节点 id（React Flow 受控化选择态）。
+     *
+     * React Flow 的内置删除热键按其受控 `nodes` 数组上的 `selected` 字段过滤目标，
+     * 因此选择态必须落到受控节点上，删除热键才会命中。选择态是纯 UI 状态，不入 canonical 图。
+     */
+    selectedNodeIds?: string[];
 }
 
 /** 执行状态（execution_* 事件）。 */

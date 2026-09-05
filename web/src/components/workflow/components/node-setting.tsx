@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Flex, notification, theme, Tooltip } from "antd";
-import { ApiOutlined, CloseOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import { ApiOutlined, CloseOutlined, DeleteOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import type { ComponentType } from "react";
 import { default as EditableText } from "@/components/editable-text/editable-text";
 import { useWorkflowState, node_name } from "../graph";
@@ -70,6 +70,15 @@ export function NodeSetting({
         notification.success({ title: '校验通过，开始运行节点' });
     };
 
+    /**
+     * 删除当前节点。设置面板里常驻 Monaco 编辑器（会抢占焦点，使 Delete/Backspace 落入编辑器），
+     * 键盘删除对这类节点不可靠，故提供图标按钮作为确定性的删除入口。
+     */
+    const handle_delete = () => {
+        dispatch({ type: 'graph/remove_node', nodeId });
+        onClose();
+    };
+
     return (
         <InspectorCard
             title={
@@ -86,6 +95,9 @@ export function NodeSetting({
                     </Tooltip>
                     <Tooltip title="节点文档">
                         <Button type="text" icon={<ApiOutlined />} size="small" />
+                    </Tooltip>
+                    <Tooltip title="删除节点">
+                        <Button type="text" icon={<DeleteOutlined />} size="small" onClick={handle_delete} />
                     </Tooltip>
                     <span style={{
                         width: 1,

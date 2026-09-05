@@ -160,7 +160,9 @@ export default function MonacoCodeEditor({
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF],
             run: () => undefined,
         });
-        editor.focus();
+        // 不要在挂载时抢焦点：设置面板常驻 Monaco（指定输出/编码脚本），
+        // 挂载即 editor.focus() 会把焦点从画布抢走，使选中节点后按 Delete/Backspace 落到编辑器而非画布，
+        // 节点删不掉。用户在编辑器内点击后仍会自动聚焦，不影响正常输入。
     }, []);
 
     // --- 内容变化处理 ---

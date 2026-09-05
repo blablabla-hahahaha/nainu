@@ -31,11 +31,13 @@ const TOP_RESULT_Z = 2000;
  * 构建单个 ReactFlow 节点（canonical 节点 → 投影节点）。
  * measured 提供时字段随节点携带，供 adoptUserNodes 保持节点已测尺寸（避免重测闪烁）。
  * zIndex 提供时写入节点，用于被点击置顶的运行结果节点盖过其它节点。
+ * selected 提供时写入节点（受控选择态），使 React Flow 删除热键能按 selected 命中目标。
  */
 function build_rf_node(
     n: graph_node,
     position: { x: number; y: number },
     status: node_runtime_status | undefined,
+    selected: boolean,
     measured?: { width: number; height: number },
     zIndex?: number,
 ): Node {
@@ -43,6 +45,7 @@ function build_rf_node(
         id: n.id,
         type: n.type,
         position,
+        selected,
         data: {
             ...n,
             label: node_name(n),
@@ -89,7 +92,7 @@ export function from_canonical(
             y: AUTO_POSITION_Y + autoIndex * AUTO_POSITION_STEP_Y,
         };
         autoIndex++;
-        return build_rf_node(n, position, runtime?.nodes[n.id]);
+        return build_rf_node(n, position, runtime?.nodes[n.id], false);
     });
 
     const edges: Edge[] = graph.edges.map(build_rf_edge);
@@ -97,12 +100,13 @@ export function from_canonical(
     return { nodes, edges };
 }
 
-/** 单节点投影缓存条目：输入指纹（canonical 引用 / 位置 / 状态 / zIndex）+ 稳定投影对象。 */
+/** 单节点投影缓存条目：输入指纹（canonical 引用 / 位置 / 状态 / 选择态 / zIndex）+ 稳定投影对象。 */
 interface node_projection_entry {
     node: Node;
     source: graph_node;
     position: { x: number; y: number };
     status: node_runtime_status | undefined;
+    selected: boolean;
     zIndex: number | undefined;
 }
 
@@ -140,6 +144,7 @@ export function project_stable(
 ): workflow_projection {
     let autoIndex = 0;
     const next_nodes = new Map<string, node_projection_entry>();
+    const selectedNodeIds = view.selectedNodeIds ?? [];
     const nodes: Node[] = graph.nodes.map((n) => {
         const position = view.positions[n.id] ?? {
             x: AUTO_POSITION_X + autoIndex * AUTO_POSITION_STEP_X,
@@ -147,6 +152,7 @@ export function project_stable(
         };
         autoIndex++;
         const status = runtime?.nodes[n.id];
+        const selected = selectedNodeIds.includes(n.id);
         const zIndex = n.id === topNodeId ? TOP_RESULT_Z : undefined;
         const prev = cache.nodes.get(n.id);
         if (
@@ -155,6 +161,7 @@ export function project_stable(
             && prev.position.x === position.x
             && prev.position.y === position.y
             && prev.status === status
+            && prev.selected === selected
             && prev.zIndex === zIndex
         ) {
             next_nodes.set(n.id, prev);
@@ -165,12 +172,13 @@ export function project_stable(
             n,
             position,
             status,
+            selected,
             measured && typeof measured.width === 'number' && typeof measured.height === 'number'
                 ? { width: measured.width, height: measured.height }
                 : undefined,
             zIndex,
         );
-        next_nodes.set(n.id, { node, source: n, position, status, zIndex });
+        next_nodes.set(n.id, { node, source: n, position, status, selected, zIndex });
         return node;
     });
 

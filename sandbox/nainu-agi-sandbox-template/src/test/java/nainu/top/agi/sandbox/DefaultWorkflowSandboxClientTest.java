@@ -7,7 +7,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -68,5 +70,24 @@ class DefaultWorkflowSandboxClientTest {
         assertFalse(resp.success());
         assertEquals(ErrorCategory.PLATFORM, resp.errorCategory());
         assertEquals(SandboxErrorCodes.SANDBOX_INTERNAL, resp.errorCode());
+    }
+
+    /** 传输不可达（连接被拒）：收敛为可读的 PLATFORM 响应，而非让 NODE_FAILED 丢失 message。 */
+    @Test
+    void mapsUnreachableTransportToPlatformError() throws Exception {
+        // 取一个确定无监听的端口：绑定后立即释放，随后客户端连过去应被拒。
+        int closedPort;
+        try (ServerSocket s = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            closedPort = s.getLocalPort();
+        }
+        DefaultWorkflowSandboxClient unreachable = new DefaultWorkflowSandboxClient("http://127.0.0.1:" + closedPort);
+
+        SandboxExecuteResponse resp = unreachable.execute(
+                SandboxExecuteRequest.of(SandboxLanguage.PYTHON, "def main(): return {}", Map.of())).join();
+
+        assertFalse(resp.success());
+        assertEquals(ErrorCategory.PLATFORM, resp.errorCategory());
+        assertEquals(SandboxErrorCodes.SANDBOX_INTERNAL, resp.errorCode());
+        assertTrue(resp.detail() != null && resp.detail().contains("沙箱服务不可达"));
     }
 }

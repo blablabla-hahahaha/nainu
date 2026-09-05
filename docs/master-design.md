@@ -71,7 +71,7 @@ Master 是 Workflow 系统的执行引擎：DSL 编译（canonical DSL → graph
 
 ### 5.1 九事件
 
-`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。`NODE_STARTED` 携带节点输入快照，`NODE_SUCCEEDED` 携带输出快照与耗时，供前端按事件回放输入/输出。SSE 线格式为默认 message 事件（帧仅 `id` + `data`，类型在 `data.type` 内），`EventSource.onmessage` 即收——服务端不发送命名 `event:` 帧，避免与浏览器默认事件语义不一致。失败事件（`NODE_FAILED` / `EXECUTION_FAILED`）附带可选 `errorCategory / errorCode / retryable`，供前端按类别路由呈现；旧事件缺省该字段仍可回放。
+`EXECUTION_STARTED / COMPLETED / FAILED / PAUSED / RESUMED` + `NODE_STARTED / SUCCEEDED / FAILED / SUSPENDED`。事件持久化于 Redis Stream `trace:{runId}`（XADD 自动 ID 即 seq，单调），实时经进程内 sink 推送（SSE），历史经 XRANGE 重放。node 级事件由适配壳发射；`NODE_SUSPENDED` 由运行服务检测流中的 `InterruptionMetadata` 发射；`EXECUTION_*` 由运行服务发射。`NODE_STARTED`/`NODE_FAILED` 携带节点输入快照（失败时仍能看到节点消费的输入），`NODE_SUCCEEDED` 携带输出快照与耗时，供前端按事件回放输入/输出。SSE 线格式为默认 message 事件（帧仅 `id` + `data`，类型在 `data.type` 内），`EventSource.onmessage` 即收——服务端不发送命名 `event:` 帧，避免与浏览器默认事件语义不一致。失败事件（`NODE_FAILED` / `EXECUTION_FAILED`）附带可选 `errorCategory / errorCode / retryable`，供前端按类别路由呈现；旧事件缺省该字段仍可回放。
 
 ### 5.2 执行错误类别
 

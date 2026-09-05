@@ -75,11 +75,19 @@ public class NodeActionAdapter implements AsyncNodeActionWithConfig {
                 .whenComplete((result, throwable) -> {
                     if (throwable != null) {
                         Throwable cause = unwrap(throwable);
+                        String message = cause.getMessage();
+                        if (message == null || message.isBlank()) {
+                            message = WorkflowException.resolveDetail(cause);
+                        }
+                        if (message == null || message.isBlank()) {
+                            message = "节点执行失败（" + WorkflowException.resolveCategory(cause).name() + "）";
+                        }
                         traceEmitter.emit(TraceEvent.builder()
                                 .runId(runId)
                                 .type(TraceEventType.NODE_FAILED)
                                 .nodeId(definition.getId())
-                                .message(cause.getMessage())
+                                .message(message)
+                                .input(resolvedInputs)
                                 .errorCategory(WorkflowException.resolveCategory(cause).name())
                                 .errorCode(WorkflowException.resolveErrorCode(cause))
                                 .retryable(WorkflowException.resolveRetryable(cause))

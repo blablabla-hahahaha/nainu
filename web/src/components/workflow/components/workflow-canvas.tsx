@@ -100,6 +100,10 @@ export default function WorkflowCanvas({
                     onNodeClick={on_open_node_setting}
                     onPaneClick={on_close_panel}
                     defaultEdgeOptions={{ type: 'edge' }}
+                    // React Flow 默认以 Space 作为「按住平移」热键，并在 window 上监听 keydown；
+                    // 它会拦截空白键，使右侧检查器里的编码编辑器（Monaco）无法输入空格。
+                    // 关闭 Space 平移（拖拽平移仍可用），把空白键还给文本输入。
+                    panActivationKeyCode={null}
                     fitView
                 >
                     <Background
